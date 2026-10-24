@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "رصيد",
+    "slug": "raseed",
+    "scheme": "raseed",
+    "version": "1.9.3",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "backgroundColor": "#070B3E",
+    "icon": "./assets/icon.png",
+    "ios": {
+      "bundleIdentifier": "com.shadyahmed.raseed",
+      "supportsTablet": false,
+      "config": { "usesNonExemptEncryption": false },
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "ar",
+        "CFBundleDisplayName": "رصيد",
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true,
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIStatusBarStyle": "UIStatusBarStyleLightContent",
+        "UIViewControllerBasedStatusBarAppearance": true
+      }
+    },
+    "android": {
+      "package": "com.shadyahmed.raseed"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 170,
+          "resizeMode": "contain",
+          "backgroundColor": "#070B3E"
+        }
+      ],
+      [
+        "expo-local-authentication",
+        { "faceIDPermission": "رصيد بيستخدم بصمة الوش علشان يفتح التطبيق ليك إنت بس ويحمي بياناتك المالية." }
+      ],
+      [
+        "expo-notifications",
+        { "color": "#4F46E5" }
+      ]
+    ],
+    "extra": { "supportsRTL": true, "forcesRTL": true },
+    "owner": "shady87"
+  }
+}
