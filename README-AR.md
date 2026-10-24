@@ -15,3 +15,9 @@
 
 ## تحديث الواجهة بعد أي تعديل
     python scripts/build_bundle.py ../raseed/www web/bundle.js
+
+## الطريقة المعتمدة (native)
+- كود الآيفون: `native-ios/Sources/App.swift` + الواجهة المدمجة `native-ios/web/index.html`.
+- البناء والرفع: وركفلو **Build Raseed iOS (TestFlight)** في ريبو `alabdo-toys-site`
+  (بيستخدم نفس مفاتيح أبل المتسجلة هناك).
+- بعد أي تعديل في `www/`:  `python scripts/build_bundle.py www native-ios/web/index.html`

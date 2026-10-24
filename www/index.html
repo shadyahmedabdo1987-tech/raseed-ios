@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0B1020">
+<title>رصيد</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="splash">
+  <div class="blob b1"></div><div class="blob b2"></div>
+  <div class="sp-stage">
+    <div class="wave w1"></div><div class="wave w2"></div><div class="wave w3"></div>
+    <svg class="sp-logo" viewBox="0 0 512 512" aria-hidden="true">
+  <defs>
+    <linearGradient id="nTile" x1="0.15" y1="1" x2="0.85" y2="0"><stop offset="0" stop-color="#060A4E"/><stop offset=".55" stop-color="#0A1F92"/><stop offset="1" stop-color="#0F45C4"/></linearGradient>
+    <radialGradient id="nVig" cx=".42" cy=".55" r=".7"><stop offset="0" stop-color="#0B1680" stop-opacity=".0"/><stop offset="1" stop-color="#040838" stop-opacity=".55"/></radialGradient>
+    <linearGradient id="nBorder" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#5B21FF"/><stop offset=".5" stop-color="#3B5BFF"/><stop offset="1" stop-color="#22D3EE"/></linearGradient>
+    <linearGradient id="nB1" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#6A3BFF"/><stop offset=".55" stop-color="#8E86FF"/><stop offset="1" stop-color="#8FD7FF"/></linearGradient>
+    <linearGradient id="nB2" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#5B33FF"/><stop offset=".55" stop-color="#5E8BFF"/><stop offset="1" stop-color="#6FE6FF"/></linearGradient>
+    <linearGradient id="nB3" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#2F45FF"/><stop offset=".5" stop-color="#22A8FF"/><stop offset="1" stop-color="#4FF3FF"/></linearGradient>
+    <linearGradient id="nArrow" gradientUnits="userSpaceOnUse" x1="70" y1="250" x2="420" y2="90"><stop offset="0" stop-color="#9B6BFF"/><stop offset=".35" stop-color="#C9D6FF"/><stop offset=".7" stop-color="#E9FDFF"/><stop offset="1" stop-color="#5FF0FF"/></linearGradient>
+    <linearGradient id="nRing" gradientUnits="userSpaceOnUse" x1="310" y1="420" x2="460" y2="280"><stop offset="0" stop-color="#C7CCFF"/><stop offset=".5" stop-color="#FFFFFF"/><stop offset="1" stop-color="#7FF5FF"/></linearGradient>
+    <linearGradient id="nShine" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <radialGradient id="nFloor" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#3B82F6" stop-opacity=".7"/><stop offset="1" stop-color="#3B82F6" stop-opacity="0"/></radialGradient>
+    <filter id="nGlow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="7" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="nGlowS" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <clipPath id="nClip"><rect width="512" height="512" rx="118"/></clipPath>
+  </defs>
+  <g class="sp-bg">
+    <rect width="512" height="512" rx="118" fill="url(#nTile)"/>
+    <rect width="512" height="512" rx="118" fill="url(#nVig)"/>
+    <rect x="3" y="3" width="506" height="506" rx="115" fill="none" stroke="url(#nBorder)" stroke-width="5" filter="url(#nGlowS)"/>
+  </g>
+  <g clip-path="url(#nClip)">
+    <ellipse class="sp-floor" cx="250" cy="432" rx="190" ry="16" fill="url(#nFloor)"/>
+    <g filter="url(#nGlowS)">
+      <path class="sp-bar k1" d="M69 306 Q69 296 79 293 L132 280 Q146 277 146 291 L146 414 Q146 427 133 427 L82 427 Q69 427 69 414 Z" fill="url(#nB1)"/>
+      <path class="sp-bar k2" d="M165 262 Q165 252 175 248 L227 232 Q241 228 241 243 L241 414 Q241 427 228 427 L178 427 Q165 427 165 414 Z" fill="url(#nB2)"/>
+      <path class="sp-bar k3" d="M259 212 Q259 202 269 198 L325 178 Q340 173 340 189 L340 414 Q340 427 327 427 L272 427 Q259 427 259 414 Z" fill="url(#nB3)"/>
+    </g>
+    <g filter="url(#nGlow)">
+      <path class="sp-arrow" pathLength="1" d="M80 245 Q215 225 312 160 Q350 135 384 110" fill="none" stroke="url(#nArrow)" stroke-width="34" stroke-linecap="round"/>
+      <path class="sp-head" pathLength="1" d="M315 93 L414 88 L396 182" fill="none" stroke="url(#nArrow)" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g class="sp-coin">
+      <circle cx="388" cy="352" r="86" fill="#0A1478"/>
+      <g class="sp-ringg" filter="url(#nGlowS)"><circle class="sp-ring" pathLength="100" cx="388" cy="352" r="70" fill="none" stroke="url(#nRing)" stroke-width="25" stroke-linecap="round" stroke-dasharray="80 20" stroke-dashoffset="-22"/></g>
+      <g class="sp-dot" filter="url(#nGlowS)"><text x="386" y="381" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="84" fill="#fff">£</text></g>
+    </g>
+    <rect class="sp-shine" x="-260" y="-60" width="200" height="640" fill="url(#nShine)" />
+  </g>
+</svg>
+  </div>
+  <h1 class="sp-title">رصيد</h1>
+  <p class="sp-sub">فلوسك تحت عينك… كل يوم</p>
+  <div class="bar"><i></i></div>
+  <div class="credit">Powered by Shady Ahmed</div>
+</div>
+
+<div id="onb"></div>
+<div id="lock"></div>
+
+<div id="app">
+  <main id="view"></main>
+  <nav class="nav" id="nav">
+    <button data-go="home" class="on"></button>
+    <button data-go="tx"></button>
+    <div class="fab-wrap"><button class="fab" id="fab" aria-label="إضافة"></button></div>
+    <button data-go="debts"></button>
+    <button data-go="reports"></button>
+  </nav>
+</div>
+<div class="fab-menu" id="fabMenu"><div class="opts"></div></div>
+<div id="toast"></div>
+<div id="printArea"></div>
+
+<script src="js/icons.js"></script>
+<script src="js/core.js"></script>
+<script src="js/app.js"></script>
+<script src="js/report.js"></script>
+</body>
+</html>
