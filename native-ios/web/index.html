@@ -2506,9 +2506,10 @@ if (EN) {
    iPhone: same idea, but Apple requires the free period to be a free "30-day Trial" item the user starts
    (its purchase date is the trial start, kept by the App Store across reinstalls). */
 const PRO_TRIAL_DAYS = 30;
+const PRO_ON = false; // رصيد مجاني بالكامل — خليها true لو حبيت ترجّع الدفع
 const Pro = {
   active: false, available: false, checked: false, price: '', pending: false, trialStart: '', trialAvailable: false,
-  enabled() { return !!(NATIVE && NATIVE.proBuy); },
+  enabled() { return PRO_ON && !!(NATIVE && NATIVE.proBuy); },
   selling() { return this.enabled() && this.available; },
   start() {
     if (!this.selling()) return '';
