@@ -102,6 +102,10 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
 
         NotificationCenter.default.addObserver(self, selector: #selector(becameActive), name: UIApplication.didBecomeActiveNotification, object: nil)
 
+        loadApp()
+    }
+
+    func loadApp() {
         if let url = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "web"),
            let html = try? String(contentsOf: url, encoding: .utf8) {
             web.loadHTMLString(html, baseURL: URL(string: "https://raseed.app/"))
@@ -142,6 +146,12 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         guard let url = navigationAction.request.url else { decisionHandler(.allow); return }
         let s = url.absoluteString
+        // the page lives in the app bundle — never fetch raseed.app from the internet (reload / back / forward)
+        if navigationAction.targetFrame?.isMainFrame != false && s.hasPrefix("https://raseed.app") && (navigationAction.navigationType == .reload || navigationAction.navigationType == .backForward || navigationAction.navigationType == .linkActivated || navigationAction.navigationType == .formSubmitted) {
+            decisionHandler(.cancel)
+            DispatchQueue.main.async { self.loadApp() }
+            return
+        }
         if s.hasPrefix("https://raseed.app") || s.hasPrefix("about:") || s.hasPrefix("data:") || s.hasPrefix("blob:") || navigationAction.targetFrame?.isMainFrame == false {
             decisionHandler(.allow)
         } else {
@@ -271,6 +281,8 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
             c.userInfo = ["openView": daily ? "add" : "debts"]
             let r = UNNotificationRequest(identifier: "test-\(Date().timeIntervalSince1970)", content: c, trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false))
             UNUserNotificationCenter.current().add(r)
+        case "reloadApp":
+            loadApp()
         case "setLang":
             appEN = str(0) == "en"
         case "bioAuth":
@@ -446,6 +458,7 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
         testNotif: function(kind){ post('testNotif', [kind]); },
         bioAvailable: function(){ return call('bioAvailable') === '1'; },
         setLang: function(l){ post('setLang', [l]); },
+        reloadApp: function(){ post('reloadApp', []); },
         bioAuth: function(title, sub){ post('bioAuth', [title, sub]); }
       };
     })();

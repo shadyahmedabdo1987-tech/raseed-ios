@@ -756,6 +756,8 @@ const DIRX = EN ? 1 : -1; /* horizontal scroll direction for sliders */
 function setLang(l) {
   try { localStorage.setItem('raseed_lang', l); } catch (e) { }
   try { if (window.Store && Store.data) { Store.data.settings.lang = l; Store.save(); } } catch (e) { }
+  try { if (window.RaseedNative && RaseedNative.setLang) RaseedNative.setLang(l); } catch (e) { }
+  try { if (window.RaseedNative && RaseedNative.reloadApp) return RaseedNative.reloadApp(); } catch (e) { }
   location.reload();
 }
 </script>
