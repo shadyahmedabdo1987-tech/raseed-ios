@@ -11,7 +11,7 @@ function reportHTML(period) {
   const css = `@font-face{font-family:Plex;src:url(${FONT_URL('Regular')});font-weight:400}@font-face{font-family:Plex;src:url(${FONT_URL('SemiBold')});font-weight:600}@font-face{font-family:Plex;src:url(${FONT_URL('Bold')});font-weight:700}
   @page{size:A4;margin:14mm 12mm}*{box-sizing:border-box}body{font-family:Plex,sans-serif;color:#0F172A;margin:0;font-size:11.5px;line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .hd{display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:16px;background:linear-gradient(135deg,#1E1B4B,#4338CA 55%,#06B6D4);color:#fff;margin-bottom:14px}
-  .hd h1{margin:0;font-size:22px}.hd p{margin:0;opacity:.85}.hd .r{margin-inline-start:auto;text-align:left;font-size:11px;opacity:.9}
+  .hd h1{margin:0;font-size:22px}.hd p{margin:0;opacity:.85}.hd .r{margin-inline-start:auto;text-align:end;font-size:11px;opacity:.9}
   .kp{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}.kp div{border:1px solid #E2E8F0;border-radius:12px;padding:10px 12px}.kp small{color:#64748B;display:block}.kp b{font-size:17px}
   h2{font-size:14px;margin:16px 0 8px;padding-inline-start:10px;border-inline-start:4px solid #4F46E5}
   table{width:100%;border-collapse:collapse}th{background:#F1F5F9;color:#334155;font-weight:600;text-align:start;padding:7px 8px;font-size:11px}td{padding:6px 8px;border-bottom:1px solid #EEF2F7}tr{page-break-inside:avoid}
@@ -99,3 +99,9 @@ window.raseedSaved = (ok, kind) => {
     $('#ss', sh).onclick = () => { closeSheet(); NATIVE && NATIVE.shareLast && NATIVE.shareLast(); };
   });
 };
+
+if (EN) {
+  const _rh = reportHTML, _rn = reportName;
+  reportHTML = p => TR(_rh(p)).replace('lang="ar" dir="rtl"', 'lang="en" dir="ltr"');
+  reportName = p => TR(_rn(p)).replace(/[^\w.\-]+/g, '-');
+}

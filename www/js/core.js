@@ -9,7 +9,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-const I = (n, cls = '') => `<svg class="i ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${(window.ICONS || {})[n] || ''}</svg>`;
+const I = (n, cls = '') => `<svg class="i i-${n} ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${(window.ICONS || {})[n] || ''}</svg>`;
 
 /* ---------- dates ---------- */
 const pad = n => String(n).padStart(2, '0');
@@ -26,8 +26,8 @@ const addMonths = (s, n) => {
 };
 const diffDays = (a, b) => Math.round((parseD(b) - parseD(a)) / 86400000);
 const monthKey = s => s.slice(0, 7);
-const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
-const DAYS = ['الأحد', 'الاتنين', 'التلات', 'الأربع', 'الخميس', 'الجمعة', 'السبت'];
+const MONTHS = EN ? ['January','February','March','April','May','June','July','August','September','October','November','December'] : ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+const DAYS = EN ? ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'] : ['الأحد', 'الاتنين', 'التلات', 'الأربع', 'الخميس', 'الجمعة', 'السبت'];
 const monthName = mk => { const [y, m] = mk.split('-').map(Number); return `${MONTHS[m - 1]} ${N(y, true)}`; };
 const dayLabel = s => {
   const t = today();
@@ -46,7 +46,7 @@ function toAr(str) { return String(str).replace(/[0-9]/g, d => AR[d]).replace(/,
 function N(n, plain = false) {
   if (n == null || isNaN(n)) n = 0;
   const s = plain ? String(n) : Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
-  return Store.data.settings.digits === 'en' ? s : toAr(s);
+  return (EN || Store.data.settings.digits === 'en') ? s : toAr(s);
 }
 const money = (n, sign = false) => {
   const v = Math.abs(r3(n));
@@ -344,7 +344,7 @@ function syncReminders() {
     (Store.data.cards || []).forEach(c => { if (c.type === 'credit' && c.dueDay && !c.archived) { const u = Card.used(c), due = Card.nextDue(c); if (u > 0 && due) items.push({ name: 'بطاقة ' + c.name, dir: 'owe', due, amt: moneyT(u) }); } });
     items.sort((a, b) => a.due < b.due ? -1 : 1);
     const lastTx = Store.data.tx.filter(t => t.type === 'expense').reduce((m, t) => t.date > m ? t.date : m, '');
-    NATIVE.syncReminders(JSON.stringify({ inst: !!n.inst, before: n.before, hour: n.hour, min: 0, daily: !!n.daily, dailyHour: n.dailyHour, dailyMin: 0, digits: Store.data.settings.digits, lastTx, items: items.slice(0, 200) }));
+    NATIVE.syncReminders(JSON.stringify({ inst: !!n.inst, before: n.before, hour: n.hour, min: 0, daily: !!n.daily, dailyHour: n.dailyHour, dailyMin: 0, digits: EN ? 'en' : Store.data.settings.digits, lang: LANG, lastTx, items: items.slice(0, 200) }));
   } catch (e) { }
 }
 

@@ -231,7 +231,7 @@ AFTER.home = () => {
   App.slideTimer = setInterval(() => {
     if (paused || App.sheet) return;
     const n = sl.children.length, w = sl.firstElementChild.offsetWidth + 14;
-    idx = (idx + 1) % n; sl.scrollTo({ left: -idx * w, behavior: 'smooth' });
+    idx = (idx + 1) % n; sl.scrollTo({ left: DIRX * idx * w, behavior: 'smooth' });
     if (sl.scrollLeft === 0 && idx > 0 && getComputedStyle(sl).direction === 'rtl') sl.scrollTo({ left: -idx * w, behavior: 'smooth' });
   }, 4500);
 };
@@ -535,7 +535,7 @@ function cardFace(c, big) {
     <div class="bc-chip"><svg viewBox="0 0 40 30"><rect x="1" y="1" width="38" height="28" rx="6" fill="#E9C46A"/><path d="M1 10h12M1 20h12M27 10h12M27 20h12M13 1v28M27 1v28" stroke="#B08A2E" stroke-width="1.4" fill="none"/></svg>${I('wifi', 'bc-nfc')}</div>
     <div class="bc-num num">•••• •••• •••• ${c.last4 ? esc(c.last4) : '••••'}</div>
     <div class="bc-bot"><div><small>${credit ? 'المتاح' : 'صرفت الشهر ده'}</small><b class="num">${N(r3(credit ? Card.available(c) : Card.spent(c, monthKey(today()) + '-01', today())))} <small>${esc(S().currency)}</small></b></div>
-    <div style="text-align:left"><small>${esc(c.name)}</small>${credit ? `<b class="num" style="font-size:13px">مستخدم ${N(p)}٪</b>` : ''}</div></div>
+    <div style="text-align:end"><small>${esc(c.name)}</small>${credit ? `<b class="num" style="font-size:13px">مستخدم ${N(p)}٪</b>` : ''}</div></div>
     ${credit ? `<div class="bc-bar"><i data-w="${p}"></i></div>` : ''}</div>`;
 }
 function vCards() {
@@ -697,7 +697,7 @@ function vFlexDebt(d) {
     const pay = e.kind === 'pay';
     return `<button class="inst ${pay ? 'paid' : ''}" style="width:100%;text-align:start" onclick="flexEntry('${d.id}','${e.kind}','${e.id}')"><span class="n">${I(pay ? 'check' : 'plus')}</span>
       <span class="mid"><b class="num" style="color:${pay ? 'var(--green)' : col}">${pay ? '−' : '+'}${N(e.amount)} ${cur}</b><small>${shortDate(e.date)}${e.note ? ' · ' + esc(e.note) : ''}</small></span>
-      <span style="text-align:left;font-size:12px" class="faint">فاضل<br><b class="num" style="color:var(--text);font-size:13.5px">${N(Math.max(0, after))}</b></span></button>`;
+      <span style="text-align:end;font-size:12px" class="faint">فاضل<br><b class="num" style="color:var(--text);font-size:13.5px">${N(Math.max(0, after))}</b></span></button>`;
   }).join('') : emptyBox('receipt', 'لسه مفيش حركات')}
   <button class="btn danger" style="margin-top:14px" onclick="confirmBox('تمسح المديونية دي كلها؟',()=>{D().debts=D().debts.filter(x=>x.id!=='${d.id}');Store.save();back();toast('اتمسحت','trash')})">${I('trash')} مسح المديونية</button></div>`;
 }
@@ -928,7 +928,8 @@ function vSettings() {
   </div>
   <div class="set-group">
     ${row('moon', '#6366F1', 'الوضع الليلي', s.theme === 'dark' ? 'شغال' : 'مقفول', `toggleTheme()`, `<span class="switch ${s.theme === 'dark' ? 'on' : ''}"></span>`)}
-    ${row('number', '#EC4899', 'شكل الأرقام', s.digits === 'en' ? 'إنجليزي 123' : 'عربي ١٢٣', `S().digits=S().digits==='en'?'ar':'en';Store.save();refresh()`, `<span class="badge b-indigo">${s.digits === 'en' ? '123' : '١٢٣'}</span>`)}
+    ${row('language', '#0EA5E9', EN ? 'Language' : 'اللغة', EN ? 'English' : 'العربية', `langSheet()`, `<span class="badge b-indigo">${EN ? 'EN' : 'ع'}</span>`)}
+    ${EN ? '' : row('number', '#EC4899', 'شكل الأرقام', s.digits === 'en' ? 'إنجليزي 123' : 'عربي ١٢٣', `S().digits=S().digits==='en'?'ar':'en';Store.save();refresh()`, `<span class="badge b-indigo">${s.digits === 'en' ? '123' : '١٢٣'}</span>`)}
     ${row('coin', '#EAB308', 'العملة', esc(s.currency), `editSetting('currency')`)}
     ${row('lock', '#EF4444', 'قفل برقم سري', s.pin ? 'شغال' : 'مقفول — احمي بياناتك', `pinSetup()`, `<span class="switch ${s.pin ? 'on' : ''}"></span>`)}
     ${s.pin ? row('fingerprint', '#10B981', 'الدخول بالبصمة أو الوش', s.bio ? 'شغال' : bioOK() ? 'افتح التطبيق من غير ما تكتب الرقم' : (NATIVE && NATIVE.bioAvailable ? 'مفيش بصمة متسجلة على الموبايل' : 'على الموبايل بس'), `toggleBio()`, `<span class="switch ${s.bio ? 'on' : ''}"></span>`) : ''}
@@ -937,7 +938,7 @@ function vSettings() {
   </div>
   <div class="sec-h" style="margin-top:4px"><h3>${I('bell')} الإشعارات</h3>${NATIVE && NATIVE.notifAllowed && !NATIVE.notifAllowed() ? `<button onclick="NATIVE.openNotifSettings()">فعّلها من الموبايل</button>` : ''}</div>
   <div class="set-group">
-    ${row('calendar-dollar', '#F59E0B', 'تذكير الأقساط', s.notif.inst ? `${s.notif.before ? 'قبل القسط بـ' + ['', 'يوم', 'يومين', '٣ أيام'][s.notif.before] : 'يوم القسط نفسه'} · الساعة ${hourLabel(s.notif.hour)}` : 'مقفول', `toggleNotif('inst')`, `<span class="switch ${s.notif.inst ? 'on' : ''}"></span>`)}
+    ${row('calendar-dollar', '#F59E0B', 'تذكير الأقساط', s.notif.inst ? `${s.notif.before ? (EN ? ['', '1 day', '2 days', '3 days'][s.notif.before] + ' before' : 'قبل القسط بـ' + ['', 'يوم', 'يومين', '٣ أيام'][s.notif.before]) : 'يوم القسط نفسه'} · الساعة ${hourLabel(s.notif.hour)}` : 'مقفول', `toggleNotif('inst')`, `<span class="switch ${s.notif.inst ? 'on' : ''}"></span>`)}
     ${s.notif.inst ? row('clock', '#4F46E5', 'ميعاد تذكير الأقساط', 'إمتى أفكّرك، وقبلها بقد إيه', `notifTimes('inst')`) : ''}
     ${row('pencil', '#10B981', 'تذكير يومي بالمصروفات', s.notif.daily ? `كل يوم الساعة ${hourLabel(s.notif.dailyHour)} لو مسجّلتش حاجة` : 'مقفول', `toggleNotif('daily')`, `<span class="switch ${s.notif.daily ? 'on' : ''}"></span>`)}
     ${s.notif.daily ? row('clock', '#06B6D4', 'ميعاد التذكير اليومي', `الساعة ${hourLabel(s.notif.dailyHour)}`, `notifTimes('daily')`) : ''}
@@ -954,7 +955,7 @@ function vSettings() {
     ${row('file-type-pdf', '#E11D48', 'تقرير PDF', 'تقرير كامل بالحركات والتحليل', `exportPDF()`)}
     ${row('trash', '#EF4444', 'مسح كل البيانات', 'ابدأ من الأول', `confirmBox('تمسح كل البيانات؟',()=>{localStorage.removeItem(Store.KEY);location.reload()},'امسح الكل')`)}
   </div>
-  <div style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0 20px">رصيد — الإصدار 1.9.3<br>Powered by Shady Ahmed</div></div>`;
+  <div style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0 20px">رصيد — الإصدار 1.10.0<br>Powered by Shady Ahmed</div></div>`;
 }
 function editSetting(k) {
   const s = S();
@@ -1022,7 +1023,7 @@ function catForm(id) {
 }
 
 /* ---- notifications ---- */
-function hourLabel(h) { const p = h < 12 ? 'ص' : 'م', x = h % 12 || 12; return `${N(x)} ${p}`; }
+function hourLabel(h) { const p = EN ? (h < 12 ? 'AM' : 'PM') : (h < 12 ? 'ص' : 'م'), x = h % 12 || 12; return `${N(x)} ${p}`; }
 function needNative() { if (!NATIVE || !NATIVE.syncReminders) { toast('الإشعارات بتشتغل في تطبيق الموبايل بس', 'info-circle'); return true; } return false; }
 function askNotif() { try { if (NATIVE && NATIVE.requestNotif) return NATIVE.requestNotif(); } catch (e) { } return true; }
 function toggleNotif(k) {
@@ -1136,7 +1137,7 @@ function pinPad(title, onDone, sub = '', opt = {}) {
 function unlock() { const L = $('#lock'); L.classList.add('out'); setTimeout(() => { L.classList.remove('show', 'out'); updateBar(); }, 380); App.locked = false; App.fails = 0; }
 function askBio() {
   if (!S().bio || !bioOK()) return;
-  try { NATIVE.bioAuth('فتح رصيد', 'استخدم البصمة أو الوش عشان تفتح'); } catch (e) { }
+  try { NATIVE.bioAuth(TR('فتح رصيد'), TR('استخدم البصمة أو الوش عشان تفتح')); } catch (e) { }
 }
 window.raseedBio = (ok, code) => {
   if (App.bioSetup) { const f = App.bioSetup; App.bioSetup = null; return f(ok); }
@@ -1181,7 +1182,7 @@ function toggleBio() {
   if (!NATIVE || !NATIVE.bioAuth) return toast('البصمة بتشتغل على الموبايل بس', 'info-circle');
   if (!bioOK()) return toast('سجّل بصمة في إعدادات الموبايل الأول', 'fingerprint');
   App.bioSetup = ok => { if (!ok) return toast('البصمة ما اتأكدتش', 'info-circle'); S().bio = true; Store.save(); refresh(); toast('الدخول بالبصمة اتفعل', 'fingerprint'); };
-  NATIVE.bioAuth('تفعيل البصمة', 'أكّد بصمتك عشان نفعّل الدخول بيها');
+  NATIVE.bioAuth(TR('تفعيل البصمة'), TR('أكّد بصمتك عشان نفعّل الدخول بيها'));
 }
 function lockAfterSheet() {
   const cur = S().lockAfter ?? 60;
@@ -1191,13 +1192,19 @@ function lockAfterSheet() {
 }
 const lockAfterLabel = () => ({ 0: 'على طول', 60: 'بعد دقيقة', 300: 'بعد ٥ دقايق', 900: 'بعد ١٥ دقيقة' })[S().lockAfter ?? 60];
 
+function langSheet() {
+  openSheet(`<h3>${EN ? 'Language' : 'اللغة'}</h3><div class="list">${[['ar', 'العربية', 'ع'], ['en', 'English', 'EN']].map(([v, l, b]) => `<button class="item" data-v="${v}"><span class="ic b-indigo" style="font-weight:700">${b}</span><span class="mid"><b class="notr">${l}</b></span>${v === LANG ? I('check', 'green') : ''}</button>`).join('')}</div>`, sh => {
+    $$('[data-v]', sh).forEach(b => b.onclick = () => { if (b.dataset.v === LANG) return closeSheet(); setLang(b.dataset.v); });
+  });
+}
+
 /* ---- onboarding ---- */
 function onboarding() {
   const O = $('#onb');
   const sl = [['wallet', 'كل فلوسك في مكان واحد', 'سجّل مصروفك اليومي والإيداعات والمرتب بضغطة واحدة.'],
     ['calendar-dollar', 'قسّط مديونياتك بذكاء', 'سجّل أي مديونية، وقسّطها على المواعيد اللي تناسبك، وأنا أفكّرك بكل قسط.'],
     ['chart-pie', 'تقارير تفهم منها', 'اعرف أكتر حاجة بتصرف فيها، والبند بيخلص إمتى، ونقاط قوتك — وطلّعها PDF.']];
-  O.innerHTML = `<div class="onb-slides" id="os">${sl.map(([ic, t, p]) => `<div class="onb-s"><div class="onb-art">${I(ic)}</div><h2>${t}</h2><p>${p}</p></div>`).join('')}
+  O.innerHTML = `<button class="onb-lang" onclick="setLang(EN ? 'ar' : 'en')">${I('language')}<span class="notr">${EN ? 'العربية' : 'English'}</span></button><div class="onb-slides" id="os">${sl.map(([ic, t, p]) => `<div class="onb-s"><div class="onb-art">${I(ic)}</div><h2>${t}</h2><p>${p}</p></div>`).join('')}
     <div class="onb-s" style="justify-content:center"><img src="${LOGO_URL}" style="width:84px;height:84px;border-radius:24px;margin-bottom:18px;box-shadow:var(--shadow-lg)"><h2>يلا نبدأ</h2><p style="margin-bottom:20px">شوية بيانات بسيطة (تقدر تغيرها بعدين)</p>
       <div style="width:100%;max-width:340px;text-align:start"><div class="field"><label>اسمك</label><input id="on1" placeholder="مثلاً: شادي"></div>
       <div class="field"><label>مرتبك الشهري (اختياري)</label><input id="on2" inputmode="decimal" placeholder="0"></div>
@@ -1211,7 +1218,7 @@ function onboarding() {
   s.addEventListener('scroll', () => requestAnimationFrame(upd), { passive: true }); upd();
   btn.onclick = () => {
     const k = idx();
-    if (k < 3) return s.scrollTo({ left: -(k + 1) * s.clientWidth, behavior: 'smooth' });
+    if (k < 3) return s.scrollTo({ left: DIRX * (k + 1) * s.clientWidth, behavior: 'smooth' });
     S().name = $('#on1', O).value.trim(); S().salary = parseNum($('#on2', O).value); S().opening = parseNum($('#on3', O).value); S().onboarded = true;
     Store.save(); setTimeout(askNotif, 900); O.style.transition = 'opacity .4s'; O.style.opacity = 0; setTimeout(() => { O.classList.remove('show'); O.style.opacity = ''; updateBar(); }, 400); go('home', {}, { root: true });
   };
@@ -1219,6 +1226,7 @@ function onboarding() {
 
 /* ================= BOOT ================= */
 function boot() {
+  try { if (NATIVE && NATIVE.setLang) NATIVE.setLang(LANG); } catch (e) { }
   Store.load(); applyTheme(); buildNav(); go('home', {}, { root: true });
   const sp = $('#splash'), app = $('#app');
   app.classList.add('pre');

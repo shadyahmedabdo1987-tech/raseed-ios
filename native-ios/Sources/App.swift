@@ -9,6 +9,9 @@ import WebKit
 import LocalAuthentication
 import UserNotifications
 
+var appEN = UserDefaults.standard.string(forKey: "raseedLang") == "en" { didSet { UserDefaults.standard.set(appEN ? "en" : "ar", forKey: "raseedLang") } }
+func L(_ ar: String, _ en: String) -> String { appEN ? en : ar }
+
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     var window: UIWindow?
@@ -152,8 +155,8 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
         guard prompt.hasPrefix("RN:") else {
             let a = UIAlertController(title: nil, message: prompt, preferredStyle: .alert)
             a.addTextField { $0.text = defaultText }
-            a.addAction(UIAlertAction(title: "إلغاء", style: .cancel) { _ in completionHandler(nil) })
-            a.addAction(UIAlertAction(title: "تمام", style: .default) { _ in completionHandler(a.textFields?.first?.text) })
+            a.addAction(UIAlertAction(title: appEN ? "Cancel" : "إلغاء", style: .cancel) { _ in completionHandler(nil) })
+            a.addAction(UIAlertAction(title: appEN ? "OK" : "تمام", style: .default) { _ in completionHandler(a.textFields?.first?.text) })
             present(a, animated: true)
             return
         }
@@ -239,7 +242,7 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
             let url = FileManager.default.temporaryDirectory.appendingPathComponent(safeName(str(0), "raseed-backup.json"))
             do {
                 try str(1).write(to: url, atomically: true, encoding: .utf8)
-                js("window.toast&&toast('اختار «حفظ في الملفات» أو ابعتها لنفسك','download')")
+                js("window.toast&&toast('" + L("اختار «حفظ في الملفات» أو ابعتها لنفسك", "Choose «Save to Files» or send it to yourself") + "','download')")
                 share(url)
             } catch { js("window.raseedSaved&&window.raseedSaved(false)") }
         case "makePdf":
@@ -262,17 +265,19 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
         case "testNotif":
             let daily = str(0) == "daily"
             let c = UNMutableNotificationContent()
-            c.title = daily ? "✍️ سجّلت مصروفات النهارده؟" : "رصيد — الإشعارات شغالة ✅"
-            c.body = daily ? "دقيقة واحدة تسجّل فيها اللي صرفته." : "هفكّرك هنا قبل ميعاد أي قسط."
+            c.title = daily ? L("✍️ سجّلت مصروفات النهارده؟", "✍️ Did you log today's expenses?") : L("رصيد — الإشعارات شغالة ✅", "Raseed — notifications are on ✅")
+            c.body = daily ? L("دقيقة واحدة تسجّل فيها اللي صرفته.", "Take a minute to log what you spent.") : L("هفكّرك هنا قبل ميعاد أي قسط.", "I'll remind you here before any installment is due.")
             c.sound = .default
             c.userInfo = ["openView": daily ? "add" : "debts"]
             let r = UNNotificationRequest(identifier: "test-\(Date().timeIntervalSince1970)", content: c, trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false))
             UNUserNotificationCenter.current().add(r)
+        case "setLang":
+            appEN = str(0) == "en"
         case "bioAuth":
             let ctx = LAContext()
-            ctx.localizedCancelTitle = "استخدم الرقم السري"
+            ctx.localizedCancelTitle = appEN ? "Use PIN" : "استخدم الرقم السري"
             ctx.localizedFallbackTitle = ""
-            ctx.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: str(0).isEmpty ? "فتح رصيد" : str(0)) { ok, _ in
+            ctx.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: str(0).isEmpty ? (appEN ? "Unlock Raseed" : "فتح رصيد") : str(0)) { ok, _ in
                 DispatchQueue.main.async { self.js("window.raseedBio&&window.raseedBio(\(ok),\(ok ? 0 : 13))") }
             }
         default: break
@@ -353,7 +358,8 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
         center.getNotificationSettings { s in
             guard s.authorizationStatus == .authorized || s.authorizationStatus == .provisional else { return }
             center.removeAllPendingNotificationRequests()
-            let ar = (cfg["digits"] as? String) != "en"
+            appEN = (cfg["lang"] as? String) == "en"
+            let ar = !appEN && (cfg["digits"] as? String) != "en"
             let cal = Calendar.current
             let df = DateFormatter(); df.locale = Locale(identifier: "en_US_POSIX"); df.dateFormat = "yyyy-MM-dd"
             let now = Date()
@@ -363,6 +369,7 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
                 return String(s.map { map[$0] ?? $0 })
             }
             func when(_ n: Int) -> String {
+                if appEN { return n < 0 ? "\(-n) day(s) overdue" : n == 0 ? "today" : n == 1 ? "tomorrow" : "in \(n) days" }
                 if n < 0 { return "متأخر \(digits(-n)) يوم" }
                 if n == 0 { return "النهارده" }
                 if n == 1 { return "بكرة" }
@@ -377,14 +384,14 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
                 for it in ((cfg["items"] as? [[String: Any]]) ?? []).prefix(25) {
                     guard let dueS = it["due"] as? String, let due = df.date(from: dueS) else { continue }
                     let owe = (it["dir"] as? String) != "owed"
-                    let what = (owe ? "قسط " : "تحصيل من ") + ((it["name"] as? String) ?? "") + ": " + ((it["amt"] as? String) ?? "")
+                    let what = (owe ? L("قسط ", "Installment ") : L("تحصيل من ", "Collect from ")) + ((it["name"] as? String) ?? "") + ": " + ((it["amt"] as? String) ?? "")
                     for b in (before > 0 ? [before, 0] : [0]) {
                         if let day = cal.date(byAdding: .day, value: -b, to: due), let fire = at(day, hour), fire > now {
-                            jobs.append(Job(date: fire, title: b == 0 ? "🔔 النهارده ميعاد قسط" : "🔔 تذكير بقسط", body: "\(what) — \(when(b))", open: "debts"))
+                            jobs.append(Job(date: fire, title: b == 0 ? L("🔔 النهارده ميعاد قسط", "🔔 Installment due today") : L("🔔 تذكير بقسط", "🔔 Installment reminder"), body: "\(what) — \(when(b))", open: "debts"))
                         }
                     }
                     if let late = cal.date(byAdding: .day, value: 1, to: due), let fire = at(late, hour), fire > now {
-                        jobs.append(Job(date: fire, title: "⚠️ قسط متأخر", body: "\(what) — \(when(-1))", open: "debts"))
+                        jobs.append(Job(date: fire, title: L("⚠️ قسط متأخر", "⚠️ Overdue installment"), body: "\(what) — \(when(-1))", open: "debts"))
                     }
                 }
             }
@@ -397,7 +404,7 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
                     guard let day = cal.date(byAdding: .day, value: k, to: now) else { continue }
                     if k == 0 && df.string(from: day) == lastTx { continue }
                     if let fire = at(day, hour), fire > now {
-                        list.append(Job(date: fire, title: "✍️ سجّلت مصروفات النهارده؟", body: "دقيقة واحدة تسجّل فيها اللي صرفته عشان تقاريرك تبقى مظبوطة.", open: "add"))
+                        list.append(Job(date: fire, title: L("✍️ سجّلت مصروفات النهارده؟", "✍️ Did you log today's expenses?"), body: L("دقيقة واحدة تسجّل فيها اللي صرفته عشان تقاريرك تبقى مظبوطة.", "Take one minute to log what you spent so your reports stay accurate."), open: "add"))
                     }
                 }
             }
@@ -438,6 +445,7 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
         openNotifSettings: function(){ post('openSettings'); },
         testNotif: function(kind){ post('testNotif', [kind]); },
         bioAvailable: function(){ return call('bioAvailable') === '1'; },
+        setLang: function(l){ post('setLang', [l]); },
         bioAuth: function(title, sub){ post('bioAuth', [title, sub]); }
       };
     })();

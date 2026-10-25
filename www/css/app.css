@@ -598,3 +598,22 @@ button{transition:transform .18s var(--ease),box-shadow .25s,background .25s,col
 .cpf-note svg{width:16px;height:16px;flex:none}
 .cpf-note.green{background:var(--green-bg);color:var(--green)}.cpf-note.amber{background:var(--amber-bg);color:var(--amber)}.cpf-note.red{background:var(--red-bg);color:var(--red)}
 .dd-pay .dd-t b{color:#0EA5E9}
+
+/* ---------- English / LTR ---------- */
+[dir=ltr] .i-chevron-left,[dir=ltr] .i-chevron-right,[dir=ltr] .i-arrow-left,[dir=ltr] .i-arrow-right{transform:scaleX(-1)}
+[dir=ltr] .switch::after{right:auto;left:3px}
+[dir=ltr] .switch.on::after{left:23px}
+[dir=ltr] .page{animation-name:pgFwdL}
+[dir=ltr] .page.back{animation-name:pgBwdL}
+[dir=ltr] .page.soft{animation:none}
+@keyframes pgFwdL{from{opacity:0;transform:translateX(56px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes pgBwdL{from{opacity:0;transform:translateX(-56px) scale(.985)}to{opacity:1;transform:none}}
+[dir=ltr] .topbar h2{animation-name:titleInL}
+[dir=ltr] .page.soft .topbar h2{animation:none}
+@keyframes titleInL{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+[dir=ltr] .note-wrap input{padding-left:14px;padding-right:44px}
+[dir=ltr] .note-x{left:auto;right:8px}
+[dir=ltr] .bc-num{text-align:left}
+.onb-lang{position:absolute;top:calc(14px + var(--safe-t));inset-inline-end:16px;z-index:3;display:flex;gap:6px;align-items:center;background:var(--surface);color:var(--text);padding:8px 14px;border-radius:14px;font-weight:600;font-size:13px;box-shadow:var(--shadow)}.onb-lang svg{width:18px;height:18px}
+[dir=ltr] .slide .chip{left:auto;right:18px}
+[dir=ltr] .slide::after{left:auto;right:-60px}
