@@ -1,0 +1,38 @@
+# رصيد — نسخة أندرويد لجوجل بلاي (AAB) فيها الدفع من جوه التطبيق. (run 1)
+name: Raseed Android (Google Play)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [".github/workflows/android-play.yml", "android-play/**", "www/**"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: android-actions/setup-android@v3
+      - name: SDK 36
+        run: yes | sdkmanager "platforms;android-36" "build-tools;36.0.0" >/dev/null
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: "8.13" }
+      - name: Copy web app
+        run: rm -rf android-play/app/src/main/assets/www && mkdir -p android-play/app/src/main/assets && cp -r www android-play/app/src/main/assets/www
+      - name: Build unsigned bundle + apk
+        working-directory: android-play
+        run: gradle --no-daemon bundleRelease assembleRelease 2>&1 | tee ../build.log | tail -40
+      - name: Publish outputs (branch android-play-build)
+        if: always()
+        run: |
+          mkdir -p out && cp build.log out/ 2>/dev/null || true
+          cp android-play/app/build/outputs/bundle/release/*.aab out/raseed-unsigned.aab 2>/dev/null || true
+          cp android-play/app/build/outputs/apk/release/*.apk out/raseed-unsigned.apk 2>/dev/null || true
+          cd out && git init -q && git config user.name "github-actions[bot]" && git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add . && git commit -q -m "android build $(date -u)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:refs/heads/android-play-build

@@ -3,3 +3,6 @@ node_modules/
 ios/
 android/
 *.ipa
+android-play/app/build/
+android-play/.gradle/
+android-play/app/src/main/assets/www/

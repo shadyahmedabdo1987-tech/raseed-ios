@@ -24,6 +24,7 @@ function buildNav() {
 function toggleFab() { const m = $('#fabMenu'), open = !m.classList.contains('show'); m.classList.toggle('show', open); $('#fab').classList.toggle('open', open); }
 function closeFab() { $('#fabMenu').classList.remove('show'); $('#fab').classList.remove('open'); }
 function quick(k) {
+  if (!Pro.guard()) return;
   if (k === 'exp') txForm({ type: 'expense' });
   else if (k === 'inc') txForm({ type: 'income', catId: 'deposit' });
   else if (k === 'sal') txForm({ type: 'income', catId: 'salary', amount: S().salary || '', note: 'مرتب ' + MONTHS[new Date().getMonth()] });
@@ -175,7 +176,7 @@ function vHome() {
     <div style="font-size:13px;opacity:.9;position:relative;z-index:1">${rw.date ? `لحد ${dayLabel(rw.date)} لو فضلت بنفس المعدل` : rw.days === 0 ? 'رصيدك خلص — راجع مصروفاتك' : 'سجّل مصروفاتك عشان أحسبلك'}</div></div>`;
 
   /* alerts */
-  let alerts = '';
+  let alerts = proBanner();
   Debt.upcoming(3).slice(0, 3).forEach(u => {
     alerts += `<button class="alert ${u.late ? 'b-red' : 'b-amber'}" style="width:100%;text-align:start" onclick="payForm(D().debts.find(x=>x.id==='${u.d.id}'),null,'${u.i.id}')">${I(u.late ? 'alert-triangle' : 'bell')}<span style="flex:1">${u.late ? 'متأخر' : 'مستحق'}: قسط ${esc(u.d.name)} — ${N(u.i.amount - Debt.instPaid(u.i))} ${esc(cur)} (${dayLabel(u.i.due)})</span>${I('chevron-left')}</button>`;
   });
@@ -302,6 +303,7 @@ function closeSheet(instant) {
 
 /* ---- transaction form ---- */
 function txForm(o = {}) {
+  if (!Pro.guard()) return;
   const ex = o.id ? D().tx.find(t => t.id === o.id) : null;
   const st = { type: ex ? ex.type : o.type || 'expense', catId: ex ? ex.catId : o.catId || null, src: ex ? Card.src(ex) : o.src || App.lastSrc || 'cash' };
   if (st.src !== 'cash' && !Card.get(st.src)) st.src = 'cash';
@@ -444,6 +446,7 @@ function vDebt() {
   <button class="btn danger" style="margin-top:14px" onclick="confirmBox('تمسح المديونية دي كلها؟',()=>{D().debts=D().debts.filter(x=>x.id!=='${d.id}');Store.save();back();toast('اتمسحت','trash')})">${I('trash')} مسح المديونية</button></div>`;
 }
 function debtForm(o = {}) {
+  if (!Pro.guard()) return;
   const ex = o.id ? D().debts.find(d => d.id === o.id) : null;
   const st = { dir: ex ? ex.direction : o.direction || 'owe', freq: 'm', mode: o.mode || 'flex' };
   const html = `<h3>${ex ? 'تعديل المديونية' : 'مديونية جديدة'}</h3>
@@ -499,6 +502,7 @@ function debtForm(o = {}) {
   });
 }
 function payForm(d, _x, instId) {
+  if (!Pro.guard()) return;
   if (!d) return;
   const i = instId ? d.installments.find(x => x.id === instId) : Debt.next(d); if (!i) return;
   const rem = r3((i.amount - Debt.instPaid(i))), owe = d.direction === 'owe';
@@ -575,6 +579,7 @@ function vCard() {
   <div class="list">${rList.length ? rList.slice(0, 60).map(txItem).join('') : emptyBox('credit-card', 'مفيش عمليات في الفترة دي', 'غيّر الفترة أو سجّل مصروف بالكارت ده')}</div></div>`;
 }
 function cardForm(o = {}) {
+  if (!Pro.guard()) return;
   const ex = o.id ? Card.get(o.id) : null;
   const st = { type: ex ? ex.type : o.type || 'credit', theme: ex ? ex.theme || 0 : D().cards.length % CARD_THEMES.length };
   const avail0 = ex && ex.type === 'credit' ? Card.available(ex) : '';
@@ -630,6 +635,7 @@ function cardForm(o = {}) {
   });
 }
 function cardPayForm(cid) {
+  if (!Pro.guard()) return;
   const credits = Card.all().filter(x => x.type === 'credit');
   if (!credits.length) { toast('ضيف كارت كريدت الأول', 'credit-card'); return cardForm({ type: 'credit' }); }
   let c = Card.get(cid) && Card.get(cid).type === 'credit' ? Card.get(cid) : credits.slice().sort((a, b) => Card.used(b) - Card.used(a))[0];
@@ -995,6 +1001,7 @@ function vCats() {
   <div class="sec-h" style="margin-top:16px"><h3>بنود الدخل</h3></div><div class="list">${g('income')}</div></div>`;
 }
 function catForm(id) {
+  if (!Pro.guard()) return;
   const c = id ? cat(id) : null;
   const st = { icon: c ? c.icon : 'dots', color: c ? c.color : '#4F46E5', type: c ? c.type : 'expense' };
   openSheet(`<h3>${c ? 'تعديل البند' : 'بند جديد'}${c && !c.sys ? `<button class="icon-btn" style="color:var(--red)" id="cdel">${I('trash')}</button>` : ''}</h3>
