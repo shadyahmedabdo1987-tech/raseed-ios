@@ -1,11 +1,14 @@
-// رصيد — subscription (StoreKit 2). Product: monthly auto-renewable with a 1-month free intro offer.
+// رصيد — one-time "full version" purchase (StoreKit 2) + Apple's free "30-day Trial" item.
+// Selling starts when the products are cleared for sale in App Store Connect (they're only returned to the app then).
 import UIKit
 import StoreKit
 
 final class ProStore {
     static let shared = ProStore()
-    static let productID = "com.shadyahmed.raseed.pro.monthly"
-    private var product: Product?
+    static let fullID = "com.shadyahmed.raseed.full"
+    static let trialID = "com.shadyahmed.raseed.trial30"
+    private var full: Product?
+    private var trial: Product?
     private var updates: Task<Void, Never>?
 
     func start() {
@@ -19,52 +22,55 @@ final class ProStore {
     }
 
     private func load() async {
-        if product == nil { product = try? await Product.products(for: [ProStore.productID]).first }
+        if full == nil || trial == nil {
+            if let ps = try? await Product.products(for: [ProStore.fullID, ProStore.trialID]) {
+                for p in ps { if p.id == ProStore.fullID { full = p } else if p.id == ProStore.trialID { trial = p } }
+            }
+        }
     }
 
-    private func isActive() async -> Bool {
+    private func entitlements() async -> (Bool, Date?) {
+        var owned = false; var trialDate: Date? = nil
         for await r in Transaction.currentEntitlements {
-            guard case .verified(let t) = r, t.productID == ProStore.productID, t.revocationDate == nil else { continue }
-            if let e = t.expirationDate, e < Date() { continue }
-            return true
+            guard case .verified(let t) = r, t.revocationDate == nil else { continue }
+            if t.productID == ProStore.fullID { owned = true }
+            if t.productID == ProStore.trialID { trialDate = t.originalPurchaseDate }
         }
-        return false
+        return (owned, trialDate)
     }
 
     func report(_ event: String) async {
         await load()
-        let active = await isActive()
-        var intro = false
-        if let p = product, let sub = p.subscription, sub.introductoryOffer != nil { intro = await sub.isEligibleForIntroOffer }
-        let payload: [String: Any] = ["active": active, "price": product?.displayPrice ?? "", "intro": intro, "event": event]
+        let (owned, trialDate) = await entitlements()
+        var trialStart = ""
+        if let d = trialDate { let f = DateFormatter(); f.locale = Locale(identifier: "en_US_POSIX"); f.dateFormat = "yyyy-MM-dd"; trialStart = f.string(from: d) }
+        let payload: [String: Any] = ["active": owned, "available": full != nil, "price": full?.displayPrice ?? "",
+                                      "trialAvailable": trial != nil, "trialStart": trialStart, "event": event]
         let data = (try? JSONSerialization.data(withJSONObject: payload)) ?? Data("{}".utf8)
         let json = String(data: data, encoding: .utf8) ?? "{}"
         await MainActor.run { MainVC.shared?.js("window.raseedPro&&window.raseedPro(\(json))") }
     }
 
-    func buy() async {
-        await load()
-        guard let p = product else { await report("failed"); return }
+    private func purchase(_ p: Product?, ok: String) async {
+        guard let p = p else { await report("failed"); return }
         do {
             let r = try await p.purchase()
             switch r {
             case .success(let v):
                 if case .verified(let t) = v { await t.finish() }
-                await report("bought")
-            case .pending: await report("")
-            case .userCancelled: await report("failed")
+                await report(ok)
+            case .pending: await report("pending")
+            case .userCancelled: await report("")
             @unknown default: await report("failed")
             }
         } catch { await report("failed") }
     }
 
+    func buy() async { await load(); await purchase(full, ok: "bought") }
+    func startTrial() async { await load(); await purchase(trial, ok: "trial") }
+
     func restore() async {
         try? await AppStore.sync()
         await report("restored")
-    }
-
-    func manage() async {
-        let scene: UIWindowScene? = await MainActor.run { UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first }
-        if let s = scene { try? await AppStore.showManageSubscriptions(in: s) }
     }
 }

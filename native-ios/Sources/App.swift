@@ -288,8 +288,8 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
             Task { await ProStore.shared.buy() }
         case "proRestore":
             Task { await ProStore.shared.restore() }
-        case "proManage":
-            Task { await ProStore.shared.manage() }
+        case "proTrial":
+            Task { await ProStore.shared.startTrial() }
         case "reloadApp":
             loadApp()
         case "setLang":
@@ -471,7 +471,7 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
         proStatus: function(){ post('proStatus'); },
         proBuy: function(){ post('proBuy'); },
         proRestore: function(){ post('proRestore'); },
-        proManage: function(){ post('proManage'); },
+        proTrial: function(){ post('proTrial'); },
         bioAuth: function(title, sub){ post('bioAuth', [title, sub]); }
       };
     })();
