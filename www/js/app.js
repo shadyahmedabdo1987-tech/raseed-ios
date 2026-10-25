@@ -926,6 +926,7 @@ function vSettings() {
     ${row('credit-card', '#0EA5E9', 'البطاقات البنكية', D().cards.length ? `${N(Card.all().length)} بطاقة` : 'ضيف كروت الديبت والكريدت', `go('cards')`)}
     ${row('category', '#F59E0B', 'البنود والميزانيات', 'ضيف بنود وحط حد لكل بند', `go('cats')`)}
   </div>
+  ${Pro.enabled() ? `<div class="set-group">${proRow(row)}</div>` : ''}
   <div class="set-group">
     ${row('moon', '#6366F1', 'الوضع الليلي', s.theme === 'dark' ? 'شغال' : 'مقفول', `toggleTheme()`, `<span class="switch ${s.theme === 'dark' ? 'on' : ''}"></span>`)}
     ${row('language', '#0EA5E9', EN ? 'Language' : 'اللغة', EN ? 'English' : 'العربية', `langSheet()`, `<span class="badge b-indigo">${EN ? 'EN' : 'ع'}</span>`)}
@@ -955,7 +956,7 @@ function vSettings() {
     ${row('file-type-pdf', '#E11D48', 'تقرير PDF', 'تقرير كامل بالحركات والتحليل', `exportPDF()`)}
     ${row('trash', '#EF4444', 'مسح كل البيانات', 'ابدأ من الأول', `confirmBox('تمسح كل البيانات؟',()=>{localStorage.removeItem(Store.KEY);location.reload()},'امسح الكل')`)}
   </div>
-  <div style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0 20px">رصيد — الإصدار 1.10.0<br>Powered by Shady Ahmed</div></div>`;
+  <div style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0 20px">رصيد — الإصدار 1.11.0<br>Powered by Shady Ahmed</div></div>`;
 }
 function editSetting(k) {
   const s = S();
@@ -977,7 +978,7 @@ function editSetting(k) {
 function applyTheme() { document.documentElement.dataset.theme = S().theme === 'dark' ? 'dark' : 'light'; updateBar(); }
 function updateBar() {
   if (!$('#splash').classList.contains('hide')) return setBar('#070B3E', false);
-  const dark = S().theme === 'dark', overlay = $('#onb').classList.contains('show') || $('#lock').classList.contains('show');
+  const dark = S().theme === 'dark', overlay = $('#onb').classList.contains('show') || $('#lock').classList.contains('show') || !!($('#pay') && $('#pay').classList.contains('show'));
   if (App.view === 'home' && !overlay) return setBar('#4338CA', false);
   setBar(dark ? '#0B1020' : '#F3F5FB', !dark);
 }
@@ -1239,9 +1240,10 @@ function boot() {
     if (!S().onboarded) onboarding(); else if (S().pin) lockScreen();
     updateBar();
     syncReminders();
+    Pro.start(); Pro.refresh();
     try { const v = NATIVE && NATIVE.takeOpen && NATIVE.takeOpen(); if (v && !S().pin) raseedOpen(v); } catch (e) { }
   }, 3000);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) App.hiddenAt = Date.now(); else if (S().pin && !App.locked && !App.pinCancel && App.hiddenAt && Date.now() - App.hiddenAt >= (S().lockAfter ?? 60) * 1000) lockScreen(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden) App.hiddenAt = Date.now(); else { Pro.refresh(); } if (!document.hidden && S().pin && !App.locked && !App.pinCancel && App.hiddenAt && Date.now() - App.hiddenAt >= (S().lockAfter ?? 60) * 1000) lockScreen(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') back(); });
 }
 document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', boot) : boot();

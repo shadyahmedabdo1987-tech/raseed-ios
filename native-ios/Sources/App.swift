@@ -73,6 +73,7 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        ProStore.shared.start()
         MainVC.shared = self
         view.backgroundColor = MainVC.bg
         refreshNotifStatus()
@@ -281,6 +282,14 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
             c.userInfo = ["openView": daily ? "add" : "debts"]
             let r = UNNotificationRequest(identifier: "test-\(Date().timeIntervalSince1970)", content: c, trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false))
             UNUserNotificationCenter.current().add(r)
+        case "proStatus":
+            Task { await ProStore.shared.report("") }
+        case "proBuy":
+            Task { await ProStore.shared.buy() }
+        case "proRestore":
+            Task { await ProStore.shared.restore() }
+        case "proManage":
+            Task { await ProStore.shared.manage() }
         case "reloadApp":
             loadApp()
         case "setLang":
@@ -459,6 +468,10 @@ final class MainVC: UIViewController, WKScriptMessageHandler, WKUIDelegate, WKNa
         bioAvailable: function(){ return call('bioAvailable') === '1'; },
         setLang: function(l){ post('setLang', [l]); },
         reloadApp: function(){ post('reloadApp', []); },
+        proStatus: function(){ post('proStatus'); },
+        proBuy: function(){ post('proBuy'); },
+        proRestore: function(){ post('proRestore'); },
+        proManage: function(){ post('proManage'); },
         bioAuth: function(title, sub){ post('bioAuth', [title, sub]); }
       };
     })();
