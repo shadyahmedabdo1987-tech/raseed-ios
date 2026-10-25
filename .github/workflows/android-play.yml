@@ -1,4 +1,4 @@
-# رصيد — نسخة أندرويد لجوجل بلاي (AAB) فيها الدفع من جوه التطبيق. (run 1)
+# رصيد — نسخة أندرويد لجوجل بلاي (AAB) فيها الدفع من جوه التطبيق. (run 2)
 name: Raseed Android (Google Play)
 
 on:
@@ -17,9 +17,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "17" }
-      - uses: android-actions/setup-android@v3
       - name: SDK 36
-        run: yes | sdkmanager "platforms;android-36" "build-tools;36.0.0" >/dev/null
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          SM=$(ls $ANDROID_HOME/cmdline-tools/*/bin/sdkmanager | head -1)
+          yes | $SM --licenses >/dev/null || true
+          $SM "platforms;android-36" "build-tools;36.0.0" | tail -2
+          echo "sdk.dir=$ANDROID_HOME" > android-play/local.properties
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: "8.13" }
       - name: Copy web app
@@ -30,7 +34,7 @@ jobs:
       - name: Publish outputs (branch android-play-build)
         if: always()
         run: |
-          mkdir -p out && cp build.log out/ 2>/dev/null || true
+          mkdir -p out && date > out/when.txt && cp build.log out/ 2>/dev/null || true
           cp android-play/app/build/outputs/bundle/release/*.aab out/raseed-unsigned.aab 2>/dev/null || true
           cp android-play/app/build/outputs/apk/release/*.apk out/raseed-unsigned.apk 2>/dev/null || true
           cd out && git init -q && git config user.name "github-actions[bot]" && git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
