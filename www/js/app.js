@@ -960,7 +960,7 @@ function vSettings() {
     ${row('download', '#10B981', 'نسخة احتياطية', 'احفظ كل بياناتك في ملف', `backupExport()`)}
     ${row('upload', '#4F46E5', 'استرجاع نسخة', 'رجّع بياناتك من ملف', `backupImport()`)}
     ${row('file-type-pdf', '#E11D48', 'تقرير PDF', 'تقرير كامل بالحركات والتحليل', `exportPDF()`)}
-    ${row('trash', '#EF4444', 'مسح كل البيانات', 'ابدأ من الأول', `confirmBox('تمسح كل البيانات؟',()=>{localStorage.removeItem(Store.KEY);location.reload()},'امسح الكل')`)}
+    ${row('trash', '#EF4444', 'مسح كل البيانات', 'ابدأ من الأول', `confirmBox('تمسح كل البيانات؟',wipeAll,'امسح الكل')`)}
   </div>
   <div style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0 20px">رصيد — الإصدار 1.11.0<br>Powered by Shady Ahmed</div></div>`;
 }
@@ -1204,6 +1204,16 @@ function langSheet() {
   openSheet(`<h3>${EN ? 'Language' : 'اللغة'}</h3><div class="list">${[['ar', 'العربية', 'ع'], ['en', 'English', 'EN']].map(([v, l, b]) => `<button class="item" data-v="${v}"><span class="ic b-indigo" style="font-weight:700">${b}</span><span class="mid"><b class="notr">${l}</b></span>${v === LANG ? I('check', 'green') : ''}</button>`).join('')}</div>`, sh => {
     $$('[data-v]', sh).forEach(b => b.onclick = () => { if (b.dataset.v === LANG) return closeSheet(); setLang(b.dataset.v); });
   });
+}
+
+function wipeAll() {
+  // the data is mirrored in the native app too, so overwrite it with a blank copy instead of only clearing the browser storage
+  Store.data = Store.blank(); Store.save();
+  try { window.raseedFlush && window.raseedFlush(); } catch (e) { }
+  try { ['raseed_ab', 'raseed_sell0'].forEach(k => localStorage.removeItem(k)); } catch (e) { }
+  try { if (NATIVE && NATIVE.syncReminders) syncReminders(); } catch (e) { }
+  toast('اتمسحت كل البيانات', 'trash');
+  setTimeout(() => { try { if (NATIVE && NATIVE.reloadApp) return NATIVE.reloadApp(); } catch (e) { } location.reload(); }, 600);
 }
 
 /* ---- onboarding ---- */
