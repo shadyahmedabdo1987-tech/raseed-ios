@@ -67,7 +67,7 @@ window.addEventListener('resize', () => moveNavPill());
 function render(dir) {
   clearInterval(App.slideTimer); $('#view').onscroll = null;
   const v = $('#view');
-  const fn = { home: vHome, tx: vTx, debts: vDebts, debt: vDebt, reports: vReports, settings: vSettings, cats: vCats, cards: vCards, card: vCard }[App.view] || vHome;
+  const fn = { home: vHome, tx: vTx, debts: vDebts, debt: vDebt, reports: vReports, year: vYear, settings: vSettings, cats: vCats, cards: vCards, card: vCard }[App.view] || vHome;
   if (dir === true) dir = 'bwd';
   v.innerHTML = `<div class="page ${dir === 'bwd' ? 'back' : dir === 'same' || !dir ? 'soft' : ''}">${fn()}</div>`;
   $$('.page > .sec, .page > .quick, .page > .chips, .page > .search, .page > .dots', v).forEach((el, k) => { el.classList.add('rise'); el.style.animationDelay = Math.min(k, 10) * 0.05 + 0.04 + 's'; });
@@ -149,7 +149,7 @@ function greet() { const h = new Date().getHours(); return h < 12 ? 'صباح ا
 
 /* ================= HOME ================= */
 function vHome() {
-  const t = today(), mk = monthKey(t), m = Calc.sums(Calc.month(mk)), bal = Calc.balance();
+  const t = today(), mk = Cycle.key(t), m = Calc.sums(Calc.month(mk)), bal = Calc.balance(), carried = Calc.carried(), mode = Cycle.carry();
   const owe = D().debts.filter(d => d.direction === 'owe' && !Debt.done(d));
   const oweRem = owe.reduce((s, d) => s + Debt.remaining(d), 0), oweTot = owe.reduce((s, d) => s + Debt.total(d), 0);
   const nextAll = owe.map(d => ({ d, i: Debt.next(d) })).filter(x => x.i).sort((a, b) => a.i.due < b.i.due ? -1 : 1)[0];
@@ -157,8 +157,9 @@ function vHome() {
   const cur = S().currency;
   const slides = `
   <div class="slide s1"><span class="chip">${monthName(mk)}</span>
-    <div class="lbl">${I('wallet')} رصيدك الحالي</div>
+    <div class="lbl">${I('wallet')} ${mode === 'all' ? 'رصيدك الحالي' : 'رصيد الشهر ده'}</div>
     <div class="big num" data-count="${bal}" data-cur="${esc(cur)}">0</div>
+    ${mode !== 'all' ? `<div class="cyc-note">${(() => { const r = Cycle.range(t); return `${shortDate(r.from)} ← ${shortDate(r.to)}`; })()}${carried ? ` · مترحّل ${N(r3(carried))}` : ''}</div>` : ''}
     <div class="row"><div class="pill">${I('arrow-down-left')} داخل الشهر ده<b class="num">${N(m.inc)}</b></div><div class="pill">${I('arrow-up-right')} خارج الشهر ده<b class="num">${N(m.exp)}</b></div></div></div>
   <div class="slide s2"><span class="chip">${m.net >= 0 ? 'موفّر' : 'عجز'}</span>
     <div class="lbl">${I('wallet-in')} صافي الشهر</div>
@@ -244,7 +245,7 @@ function homeCards() {
   const sel = Card.get(App.homeCard) && !Card.get(App.homeCard).archived ? Card.get(App.homeCard) : cards[0];
   return `<div class="sec"><div class="sec-h"><h3>بطاقاتي</h3><button onclick="go('cards')">${debt ? `مديونية ${N(r3(debt))} · ` : ''}الكل</button></div>
     <button class="bcard-wrap" onclick="go('card',{id:'${sel.id}'})">${cardFace(sel)}</button>
-    ${dd('homeCard', cards.map(c => ({ v: c.id, label: c.name, sub: c.type === 'credit' ? `كريدت · متاح ${N(r3(Card.available(c)))}` : `ديبت · صرفت ${N(r3(Card.spent(c, monthKey(today()) + '-01', today())))} الشهر ده`, swatch: cardGrad(c) })).concat([{ v: '__new', label: 'ضيف بطاقة جديدة', icon: 'plus', color: '#4F46E5', cls: 'dd-add' }]), sel.id, v => { if (v === '__new') return cardForm(); App.homeCard = v; refresh(); }, { label: 'اختار البطاقة' })}</div>`;
+    ${dd('homeCard', cards.map(c => ({ v: c.id, label: c.name, sub: c.type === 'credit' ? `كريدت · متاح ${N(r3(Card.available(c)))}` : `ديبت · صرفت ${N(r3(Card.spent(c, Cycle.start(today()), today())))} الشهر ده`, swatch: cardGrad(c) })).concat([{ v: '__new', label: 'ضيف بطاقة جديدة', icon: 'plus', color: '#4F46E5', cls: 'dd-add' }]), sel.id, v => { if (v === '__new') return cardForm(); App.homeCard = v; refresh(); }, { label: 'اختار البطاقة' })}</div>`;
 }
 
 /* ================= TRANSACTIONS ================= */
@@ -315,6 +316,7 @@ function txForm(o = {}) {
     <div class="field"><label>الوصف / اسم الحاجة</label><div class="note-wrap"><input id="note" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="مثلاً: عيش، بنزين، فاتورة النور" value="${esc(ex ? ex.note : o.note || '')}"><button class="note-x" id="noteX" aria-label="مسح">${I('x')}</button></div><div class="dd sugg-dd" id="suggdd"><div class="dd-panel"><div class="dd-list" id="sugg"></div></div></div></div>
     ${isPay ? '' : `<div class="field"><label id="srcL">طريقة الدفع</label><div id="srcs"></div></div>`}
     <div class="field"><label>التاريخ</label><input id="date" type="date" value="${ex ? ex.date : today()}"></div>
+    <div id="ncWrap"></div>
     <button class="btn" id="save">${I('check')} ${ex ? 'حفظ التعديل' : 'حفظ'}</button>`;
   openSheet(html, sh => {
     const drawCats = (keep) => {
@@ -322,7 +324,7 @@ function txForm(o = {}) {
       if (!list.find(c => c.id === st.catId)) st.catId = list[0].id;
       const catOpts = list.map(c => ({ v: c.id, label: c.name, icon: c.icon, color: c.color, sub: c.budget ? 'ميزانية ' + N(c.budget) : '' }));
       if (st.type === 'expense' && !ex && Card.all().some(x => x.type === 'credit')) catOpts.unshift({ v: '__cardpay', label: 'سداد فيزا / كريدت من الكاش', sub: 'تسدد للكارت أي مبلغ يريحك', icon: 'credit-card-pay', color: '#0EA5E9', cls: 'dd-pay' });
-      ddMount($('#catdd', sh), 'cat', catOpts, st.catId, v => { if (v === '__cardpay') { closeSheet(true); return cardPayForm(); } st.catId = v; App._drawSugg && App._drawSugg(); });
+      ddMount($('#catdd', sh), 'cat', catOpts, st.catId, v => { if (v === '__cardpay') { closeSheet(true); return cardPayForm(); } st.catId = v; App._drawSugg && App._drawSugg(); App._drawNc && App._drawNc(); });
       App._drawSugg && App._drawSugg();
       $$('#tseg button', sh).forEach(b => b.classList.toggle('on', b.dataset.t === st.type));
       $('#tseg', sh).className = 'seg ' + (st.type === 'expense' ? 'exp' : 'inc');
@@ -357,7 +359,16 @@ function txForm(o = {}) {
         st.src = v;
       });
     };
-    $$('#tseg button', sh).forEach(b => b.onclick = () => { st.type = b.dataset.t; st.catId = null; drawCats(); drawSrc(); });
+    $$('#tseg button', sh).forEach(b => b.onclick = () => { st.type = b.dataset.t; st.catId = null; drawCats(); drawSrc(); drawNc(); });
+    // salary = start of a new month (when the month follows the salary date)
+    st.nc = ex ? !ex.noCycle : true;
+    const drawNc = App._drawNc = () => {
+      const w = $('#ncWrap', sh); if (!w) return;
+      const show = Cycle.mode() === 'salary' && st.type === 'income' && st.catId === 'salary';
+      w.innerHTML = show ? `<button class="set" id="nc" type="button" style="border-radius:14px;background:var(--surface);margin-bottom:12px"><span class="ic b-indigo">${I('calendar-repeat')}</span><span class="mid"><b>يبدأ شهر جديد من التاريخ ده</b><small>المصروفات من اليوم ده تتحسب على الشهر الجديد</small></span><span class="switch ${st.nc ? 'on' : ''}"></span></button>` : '';
+      const b = $('#nc', w); if (b) b.onclick = () => { st.nc = !st.nc; drawNc(); };
+    };
+    drawNc();
     drawCats(); drawSrc();
     if (!ex) setTimeout(() => $('#amt', sh).focus(), 450);
     $('#save', sh).onclick = () => {
@@ -365,11 +376,14 @@ function txForm(o = {}) {
       if (amount <= 0) { $('#amt', sh).parentElement.classList.add('pin-dots', 'err'); setTimeout(() => $('#amt', sh).parentElement.classList.remove('pin-dots', 'err'), 400); return toast('اكتب المبلغ الأول', 'alert-triangle'); }
       const rec = { type: st.type, amount, catId: st.catId, note: $('#note', sh).value.trim(), date: $('#date', sh).value || today() };
       if (!isPay) { rec.src = st.src; App.lastSrc = st.src; }
+      const ncOn = Cycle.mode() === 'salary' && rec.type === 'income' && rec.catId === 'salary';
+      if (ncOn) { if (st.nc) delete rec.noCycle; else rec.noCycle = true; } else if (ex) delete ex.noCycle;
       const sc = st.src !== 'cash' && Card.get(st.src);
       if (!isPay && sc && sc.type === 'credit' && st.type === 'expense') { const av = Card.available(sc) + (ex && ex.src === sc.id ? ex.amount : 0); if (amount > av) toast(`تنبيه: المبلغ أكبر من المتاح في ${sc.name}`, 'alert-triangle'); }
       if (ex) Object.assign(ex, rec); else D().tx.push(Object.assign({ id: uid(), createdAt: Date.now() }, rec));
       Store.save(); closeSheet(); refresh();
       const cc = !isPay && st.src !== 'cash' && Card.get(st.src);
+      if (ncOn && st.nc && !ex) { const r = Cycle.range(rec.date); setTimeout(() => toast(`بدأ شهر جديد من ${shortDate(r.from)}`, 'calendar-repeat'), 2500); }
       toast(ex ? 'اتعدلت' : cc && cc.type === 'credit' ? `اتسجل على ${cc.name} — المتاح ${N(r3(Card.available(cc)))}` : cc ? `اتسجل على ${cc.name}` : st.type === 'income' ? 'الإيداع اتسجل' : 'المصروف اتسجل');
     };
     if (ex) $('#del', sh).onclick = () => confirmBox('تمسح الحركة دي؟', () => {
@@ -538,14 +552,14 @@ function cardFace(c, big) {
     <div class="bc-top"><span class="bc-bank">${esc(c.bank || 'بطاقة بنكية')}</span><span class="bc-type">${credit ? 'كريدت' : 'ديبت'}</span></div>
     <div class="bc-chip"><svg viewBox="0 0 40 30"><rect x="1" y="1" width="38" height="28" rx="6" fill="#E9C46A"/><path d="M1 10h12M1 20h12M27 10h12M27 20h12M13 1v28M27 1v28" stroke="#B08A2E" stroke-width="1.4" fill="none"/></svg>${I('wifi', 'bc-nfc')}</div>
     <div class="bc-num num">•••• •••• •••• ${c.last4 ? esc(c.last4) : '••••'}</div>
-    <div class="bc-bot"><div><small>${credit ? 'المتاح' : 'صرفت الشهر ده'}</small><b class="num">${N(r3(credit ? Card.available(c) : Card.spent(c, monthKey(today()) + '-01', today())))} <small>${esc(S().currency)}</small></b></div>
+    <div class="bc-bot"><div><small>${credit ? 'المتاح' : 'صرفت الشهر ده'}</small><b class="num">${N(r3(credit ? Card.available(c) : Card.spent(c, Cycle.start(today()), today())))} <small>${esc(S().currency)}</small></b></div>
     <div style="text-align:end"><small>${esc(c.name)}</small>${credit ? `<b class="num" style="font-size:13px">مستخدم ${N(p)}٪</b>` : ''}</div></div>
     ${credit ? `<div class="bc-bar"><i data-w="${p}"></i></div>` : ''}</div>`;
 }
 function vCards() {
   const cards = Card.all(), credit = cards.filter(c => c.type === 'credit');
   const debt = credit.reduce((s, c) => s + Math.max(0, Card.used(c)), 0), lim = credit.reduce((s, c) => s + (c.limit || 0), 0);
-  const mk = monthKey(today()), from = mk + '-01';
+  const from = Cycle.start(today());
   const month = cards.reduce((s, c) => s + Card.spent(c, from, today()), 0);
   return `${topbar('البطاقات البنكية', { backBtn: App.stack.length > 0, right: `<button class="icon-btn" onclick="cardForm()">${I('plus')}</button>` })}
   <div class="sec" style="padding-top:0"><div class="grid2">
@@ -558,7 +572,7 @@ function vCards() {
 function vCard() {
   const c = Card.get(App.params.id); if (!c) return vCards();
   const credit = c.type === 'credit', used = Card.used(c), cur = esc(S().currency);
-  const mk = monthKey(today()), from = mk + '-01';
+  const from = Cycle.start(today());
   const list = Card.txs(c).concat(Card.pays(c)).sort((a, b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
   const monthSpent = Card.spent(c, from, today());
   const pr = periodRange(), inR = t => App.range.p === 'all' || (t.date >= pr.from && t.date <= pr.to);
@@ -686,7 +700,7 @@ function vFlexDebt(d) {
   const pays = ents.filter(e => e.kind === 'pay'), lp = lastPay(d);
   const first = ents.length ? ents[0].date : today(), months = Math.max(1, diffDays(first, today()) / 30.4);
   const perMonth = paid / months, eta = perMonth > 0 && rem > 0 ? Math.ceil(rem / perMonth) : null;
-  const thisMonth = pays.filter(e => monthKey(e.date) === monthKey(today())).reduce((s, e) => s + e.amount, 0);
+  const thisMonth = pays.filter(e => Cycle.key(e.date) === Cycle.key(today())).reduce((s, e) => s + e.amount, 0);
   return `${topbar(esc(d.name), { backBtn: true, right: `<button class="icon-btn" onclick="debtForm({id:'${d.id}'})">${I('edit')}</button>` })}
   <div class="sec" style="padding-top:0"><div class="card" style="display:flex;align-items:center;gap:16px">
     ${Chart.ring(pct(paid, tot), Debt.done(d) ? '#10B981' : col)}
@@ -783,11 +797,11 @@ function addInst(did) {
 const PERIODS = [['today', 'النهارده', 'sun'], ['week', 'آخر ٧ أيام', 'calendar-week'], ['month', 'الشهر ده', 'calendar'], ['last', 'الشهر اللي فات', 'calendar-minus'], ['3m', 'آخر ٣ شهور', 'calendar-stats'], ['year', 'السنة دي', 'calendar-event'], ['all', 'كل الفترات', 'infinity']];
 const RANGE_CB = {};
 function rangeOptions() {
-  const cur = monthKey(today()), last = monthKey(addMonths(cur + '-01', -1));
-  const months = [...new Set(D().tx.map(t => monthKey(t.date)))].filter(m => m !== cur && m !== last).sort().reverse().slice(0, 12);
+  const cur = Cycle.key(today()), last = Cycle.shift(cur, -1);
+  const months = [...new Set(D().tx.map(t => Cycle.key(t.date)))].filter(m => m !== cur && m !== last).sort().reverse().slice(0, 12);
   return [{ v: 'custom', label: 'فترة مخصصة (من – إلى)', sub: App.range.p === 'custom' ? periodRange('custom').label : 'اختار التاريخين بنفسك', icon: 'calendar-search', color: '#E11D48', cls: 'dd-custom' }]
     .concat(PERIODS.map(([k, l, ic]) => ({ v: k, label: l, icon: ic, color: '#4F46E5', sub: k === 'all' ? 'من أول حركة' : (() => { const r = periodRange(k); return r.from === r.to ? shortDate(r.from) : `${shortDate(r.from)} ← ${shortDate(r.to)}`; })() })))
-    .concat(months.map(m => ({ v: 'm:' + m, label: monthName(m), icon: 'calendar-month', color: '#64748B', sub: N(D().tx.filter(t => monthKey(t.date) === m).length) + ' حركة' })));
+    .concat(months.map(m => ({ v: 'm:' + m, label: monthName(m), icon: 'calendar-month', color: '#64748B', sub: N(Calc.month(m).length) + ' حركة' })));
 }
 function rangePicker(id, cb, x = {}) {
   RANGE_CB[id] = cb;
@@ -798,7 +812,7 @@ function rangePicker(id, cb, x = {}) {
       cb();
     }, { cls: 'sm full', label: x.label || 'الفترة' })}
     ${r.p === 'custom' ? `<div class="range-dates"><div class="rd"><label>${I('calendar')} من</label><input type="date" data-rid="${id}" data-k="from" value="${pr.from}" max="${pr.to}"></div><span class="rd-arrow">${I('arrow-left')}</span><div class="rd"><label>${I('calendar')} إلى</label><input type="date" data-rid="${id}" data-k="to" value="${pr.to}" min="${pr.from}"></div></div>
-    <div class="rd-quick">${[['أول الشهر', monthKey(today()) + '-01'], ['من ٣٠ يوم', addDays(today(), -29)], ['أول السنة', today().slice(0, 4) + '-01-01']].map(([l, f]) => `<button type="button" data-rid="${id}" data-from="${f}">${l}</button>`).join('')}</div>` : ''}</div>`;
+    <div class="rd-quick">${[['أول الشهر', Cycle.start(today())], ['من ٣٠ يوم', addDays(today(), -29)], ['أول السنة', today().slice(0, 4) + '-01-01']].map(([l, f]) => `<button type="button" data-rid="${id}" data-from="${f}">${l}</button>`).join('')}</div>` : ''}</div>`;
 }
 document.addEventListener('change', e => {
   const i = e.target.closest('input[data-rid]'); if (!i || !i.value) return;
@@ -810,17 +824,17 @@ document.addEventListener('click', e => {
 });
 function periodRange(p) {
   p = p || App.range.p;
-  const t = today(), mk = monthKey(t);
+  const t = today(), mk = Cycle.key(t), cr = Cycle.range(t);
   if (p === 'custom') {
-    let f = App.range.from || mk + '-01', e = App.range.to || t; if (f > e) [f, e] = [e, f];
+    let f = App.range.from || cr.from, e = App.range.to || t; if (f > e) [f, e] = [e, f];
     return { from: f, to: e, label: `${shortDate(f)} ← ${shortDate(e)}`, custom: true };
   }
-  if (p && p.startsWith('m:')) { const m = p.slice(2); return { from: m + '-01', to: m === mk ? t : `${m}-${pad(daysInMonth(m))}`, label: monthName(m) }; }
+  if (p && p.startsWith('m:')) { const m = p.slice(2), rg = Cycle.rangeOf(m); return { from: rg.from, to: m === mk ? t : rg.to, label: monthName(m) }; }
   if (p === 'week') return { from: addDays(t, -6), to: t, label: 'آخر ٧ أيام' };
   if (p === 'today') return { from: t, to: t, label: 'النهارده' };
-  if (p === 'month') return { from: mk + '-01', to: t, label: monthName(mk) };
-  if (p === 'last') { const lm = addMonths(mk + '-01', -1); return { from: lm, to: addDays(mk + '-01', -1), label: monthName(monthKey(lm)) }; }
-  if (p === '3m') return { from: addMonths(mk + '-01', -2), to: t, label: 'آخر ٣ شهور' };
+  if (p === 'month') return { from: cr.from, to: t, label: monthName(mk) };
+  if (p === 'last') { const lk = Cycle.shift(mk, -1), lr = Cycle.rangeOf(lk); return { from: lr.from, to: lr.to, label: monthName(lk) }; }
+  if (p === '3m') return { from: Cycle.rangeOf(Cycle.shift(mk, -2)).from, to: t, label: 'آخر ٣ شهور' };
   if (p === 'year') return { from: t.slice(0, 4) + '-01-01', to: t, label: 'سنة ' + N(t.slice(0, 4), true) };
   const first = D().tx.reduce((m, x) => x.date < m ? x.date : m, t);
   return { from: first, to: t, label: 'كل الفترات' };
@@ -873,12 +887,12 @@ function reportData(p) {
     series = []; labels = [];
     for (let k = 0; k < days; k++) { const d = addDays(r.from, k); series.push(list.filter(x => x.date === d && x.type === 'expense').reduce((a, x) => a + x.amount, 0)); labels.push(k % 5 === 0 ? N(parseD(d).getDate()) : ''); }
   } else {
-    const ms = []; let m = monthKey(r.from); while (m <= monthKey(r.to)) { ms.push(m); m = monthKey(addMonths(m + '-01', 1)); }
-    series = ms.map(mk => list.filter(x => monthKey(x.date) === mk && x.type === 'expense').reduce((a, x) => a + x.amount, 0));
+    const ms = []; let m = Cycle.key(r.from); while (m <= Cycle.key(r.to)) { ms.push(m); m = Cycle.shift(m, 1); }
+    series = ms.map(mk => list.filter(x => Cycle.key(x.date) === mk && x.type === 'expense').reduce((a, x) => a + x.amount, 0));
     labels = ms.map(mk => MONTHS[+mk.slice(5) - 1].slice(0, 3));
   }
   hi = series.indexOf(Math.max(...series, 0));
-  const six = []; for (let k = 5; k >= 0; k--) six.push(monthKey(addMonths(monthKey(today()) + '-01', -k)));
+  const six = []; for (let k = 5; k >= 0; k--) six.push(Cycle.shift(Cycle.key(today()), -k));
   const sixS = six.map(mk => Calc.sums(Calc.month(mk)));
   const bySrc = {}; list.filter(t => t.type === 'expense' && t.catId !== 'cardpay').forEach(t => { const k = Card.src(t); bySrc[k] = (bySrc[k] || 0) + t.amount; });
   const srcList = Object.entries(bySrc).map(([k, v]) => { const c = k === 'cash' ? null : Card.get(k); return { k, v, name: c ? c.name : 'كاش', type: c ? c.type : 'cash', color: c ? Card.theme(c)[1] : '#10B981', n: list.filter(t => t.type === 'expense' && Card.src(t) === k && t.catId !== 'cardpay').length }; }).sort((a, b) => b.v - a.v);
@@ -892,7 +906,8 @@ function vReports() {
   if (rest) donut.push({ cat: { name: 'باقي البنود', color: '#CBD5E1' }, v: rest });
   const strengths = R.ins.filter(x => x[0] === 'good'), weak = R.ins.filter(x => x[0] === 'bad' || x[0] === 'ok'), info = R.ins.filter(x => x[0] === 'info');
   const insBlock = arr => arr.map(([k, ic, t, p]) => `<div class="insight"><span class="ic" style="background:${INS_COL[k][1]};color:${INS_COL[k][0]}">${I(ic)}</span><div><b>${esc(t)}</b><p>${esc(p)}</p></div></div>`).join('');
-  return `${topbar('التقارير', { right: `<button class="icon-btn" style="background:var(--grad);color:#fff" onclick="exportPDF()">${I('file-type-pdf')}</button>` })}
+  return `${topbar('التقارير', { right: `<button class="icon-btn" onclick="go('year')" title="التقرير السنوي">${I('calendar-stats')}</button><button class="icon-btn" style="background:var(--grad);color:#fff" onclick="exportPDF()">${I('file-type-pdf')}</button>` })}
+  <div class="sec" style="padding:0 18px 6px"><button class="card year-cta" onclick="go('year')"><span class="ic b-indigo">${I('calendar-stats')}</span><span style="flex:1;text-align:start"><b>التقرير السنوي</b><small>أداء السنة شهر بشهر — دخل وصرف وتوفير</small></span>${I('chevron-left', 'faint')}</button></div>
   <div class="filters">${rangePicker('rRange', refresh, { cls: 'full', label: 'فترة التقرير' })}</div>
   <div class="sec" style="padding-top:4px"><div class="grid2">
     <div class="stat"><div class="t">${I('arrow-down-left')} الإيداعات</div><div class="v green num" data-count="${R.s.inc}">0</div><div class="d faint">${R.prev.inc ? cmp(R.s.inc, R.prev.inc, true) : ''}</div></div>
@@ -928,6 +943,8 @@ function vSettings() {
   <div class="set-group">
     ${row('user', '#4F46E5', 'الاسم', esc(s.name || 'مش متحدد'), `editSetting('name')`)}
     ${row('briefcase', '#10B981', 'المرتب', s.salary ? `${N(s.salary)} ${esc(s.currency)} · يوم ${N(s.salaryDay)} في الشهر` : 'سجّل مرتبك عشان يفكّرك', `editSetting('salary')`)}
+    ${row('calendar-repeat', '#8B5CF6', 'بداية الشهر عندي', Cycle.mode() === 'salary' ? 'يوم ما أسجّل المرتب' : Cycle.day() === 1 ? 'أول كل شهر' : `يوم ${N(Cycle.day())} من كل شهر`, `cycleSheet()`, `<span class="badge b-indigo">${Cycle.mode() === 'salary' ? I('briefcase') : N(Cycle.day())}</span>`)}
+    ${row('arrows-right-left', '#0EA5E9', 'حساب الرصيد', CARRY_OPTS.find(o => o[0] === Cycle.carry())[1], `carrySheet()`)}
     ${row('wallet', '#06B6D4', 'الرصيد الافتتاحي', `${N(s.opening)} ${esc(s.currency)} — الفلوس اللي معاك قبل ما تبدأ`, `editSetting('opening')`)}
     ${row('credit-card', '#0EA5E9', 'البطاقات البنكية', D().cards.length ? `${N(Card.all().length)} بطاقة` : 'ضيف كروت الديبت والكريدت', `go('cards')`)}
     ${row('category', '#F59E0B', 'البنود والميزانيات', 'ضيف بنود وحط حد لكل بند', `go('cats')`)}
@@ -962,7 +979,7 @@ function vSettings() {
     ${row('file-type-pdf', '#E11D48', 'تقرير PDF', 'تقرير كامل بالحركات والتحليل', `exportPDF()`)}
     ${row('trash', '#EF4444', 'مسح كل البيانات', 'ابدأ من الأول', `confirmBox('تمسح كل البيانات؟',wipeAll,'امسح الكل')`)}
   </div>
-  <div style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0 20px">رصيد — الإصدار 1.11.0<br>Powered by Shady Ahmed</div></div>`;
+  <div style="text-align:center;color:var(--text3);font-size:12px;padding:10px 0 20px">رصيد — الإصدار 1.12.0<br>Powered by Shady Ahmed</div></div>`;
 }
 function editSetting(k) {
   const s = S();
@@ -1142,7 +1159,7 @@ function pinPad(title, onDone, sub = '', opt = {}) {
     if (val.length === 4) setTimeout(() => { const ok = onDone(val); if (ok === false) { if (NATIVE && NATIVE.vibrate) try { NATIVE.vibrate(60); } catch (e) { } $('.pin-dots', L).classList.add('err'); setTimeout(() => { $('.pin-dots', L).classList.remove('err'); val = ''; upd(); }, 420); } }, 120);
   });
 }
-function unlock() { const L = $('#lock'); L.classList.add('out'); setTimeout(() => { L.classList.remove('show', 'out'); updateBar(); }, 380); App.locked = false; App.fails = 0; }
+function unlock() { const L = $('#lock'); L.classList.add('out'); setTimeout(() => { L.classList.remove('show', 'out'); updateBar(); setTimeout(cycleIntro, 700); }, 380); App.locked = false; App.fails = 0; }
 function askBio() {
   if (!S().bio || !bioOK()) return;
   try { NATIVE.bioAuth(TR('فتح رصيد'), TR('استخدم البصمة أو الوش عشان تفتح')); } catch (e) { }
@@ -1216,6 +1233,103 @@ function wipeAll() {
   setTimeout(() => { try { if (NATIVE && NATIVE.reloadApp) return NATIVE.reloadApp(); } catch (e) { } location.reload(); }, 600);
 }
 
+/* ---- month cycle settings ---- */
+const CARRY_OPTS = [['none', 'كل شهر لوحده', 'الشهر الجديد يبدأ من صفر — العجز أو الفايض مايترحّلش'],
+  ['surplus', 'رحّل الفايض بس', 'لو فضل معاك فلوس تتنقل للشهر الجاي، والعجز مايترحّلش'],
+  ['all', 'رصيد واحد مستمر', 'كل الشهور متجمّعة مع بعض (زي الأول)']];
+function cycleSheet(after) {
+  const cur = Cycle.mode() === 'salary' ? 0 : Cycle.day();
+  const days = Array.from({ length: 28 }, (_, i) => i + 1);
+  openSheet(`<h3>${I('calendar-repeat')} الشهر الجديد يبدأ إمتى؟</h3>
+    <button class="item cyc-opt ${cur === 0 ? 'on' : ''}" id="cSal"><span class="ic b-indigo">${I('briefcase')}</span><span class="mid"><b>يوم ما أسجّل المرتب</b><small>المرتب نزل ٢٥ أو ٢٦ أو ٢٧؟ سجّله بتاريخه، ومن اليوم ده يبدأ شهر جديد بمصاريفه — الأنسب ليك</small></span>${cur === 0 ? I('check', 'green') : ''}</button>
+    <p class="muted" style="margin:14px 0 8px">أو يوم ثابت من كل شهر:</p>
+    <div class="day-grid">${days.map(d => `<button data-d="${d}" class="${d === cur ? 'on' : ''}">${N(d)}</button>`).join('')}</div>
+    <small class="faint" style="display:block;margin-top:8px">«١» يعني الشهر العادي (من أول الشهر لآخره).</small>`, sh => {
+    const done = msg => { Store.save(); closeSheet(); toast(msg, 'calendar-repeat'); if (after) setTimeout(after, 450); else refresh(); };
+    $$('[data-d]', sh).forEach(b => b.onclick = () => { const d = +b.dataset.d; S().cycleMode = 'day'; S().cycleDay = d; done(d === 1 ? 'الشهر بيبدأ أول كل شهر' : `الشهر بيبدأ يوم ${N(d)}`); });
+    $('#cSal', sh).onclick = () => { S().cycleMode = 'salary'; if (S().salaryDay > 1 && S().salaryDay <= 28) S().cycleDay = S().salaryDay; done('الشهر الجديد هيبدأ يوم ما تسجّل المرتب'); };
+  });
+}
+function carrySheet(after) {
+  const cur = Cycle.carry();
+  openSheet(`<h3>${I('arrows-right-left')} لما يبدأ شهر جديد…</h3><div class="list">${CARRY_OPTS.map(([v, l, d]) => `<button class="item" data-v="${v}"><span class="ic b-indigo">${I(v === 'none' ? 'calendar-plus' : v === 'surplus' ? 'pig-money' : 'infinity')}</span><span class="mid"><b>${l}</b><small>${d}</small></span>${v === cur ? I('check', 'green') : ''}</button>`).join('')}</div>`, sh => {
+    $$('[data-v]', sh).forEach(b => b.onclick = () => { S().carry = b.dataset.v; Store.save(); closeSheet(); toast('اتحفظ', 'check'); if (after) setTimeout(after, 450); else refresh(); });
+  });
+}
+/** one-time question after the update for people who already have data */
+function cycleIntro() {
+  if (S().cycleAsked || !D().tx.length) { if (!S().cycleAsked) { S().cycleAsked = true; Store.save(); } return; }
+  S().cycleAsked = true; Store.save();
+  openSheet(`<div class="done-anim" style="background:var(--indigo-bg);color:var(--brand1)">${I('calendar-repeat')}</div>
+    <h3 style="justify-content:center">جديد: شهرك على مقاسك</h3>
+    <p class="muted" style="text-align:center;margin:-4px 0 14px">خلّي الشهر الجديد يبدأ يوم ما تسجّل المرتب (أو يوم ثابت)، واختار لو كل شهر يتحسب لوحده من غير ما العجز يترحّل للشهر اللي بعده.</p>
+    <div class="btns"><button class="btn" id="cyGo">${I('settings')} ظبّطه دلوقتي</button><button class="btn ghost" id="cyLater">بعدين</button></div>`, sh => {
+    $('#cyGo', sh).onclick = () => { closeSheet(); setTimeout(() => cycleSheet(() => carrySheet()), 400); };
+    $('#cyLater', sh).onclick = () => closeSheet();
+  });
+}
+
+/* ================= YEAR REPORT ================= */
+function yearData(y) {
+  const keys = []; for (let m = 1; m <= 12; m++) keys.push(`${y}-${pad(m)}`);
+  const t = today(), curKey = Cycle.key(t);
+  const months = keys.map(k => {
+    const rg = Cycle.rangeOf(k), list = Calc.inRange(rg.from, rg.to), s = Calc.sums(list);
+    return { k, rg, list, s, future: rg.from > t, current: k === curKey, debt: list.filter(x => x.catId === 'debtpay').reduce((a, x) => a + x.amount, 0) };
+  });
+  const live = months.filter(m => !m.future && m.list.length);
+  const all = live.flatMap(m => m.list), tot = Calc.sums(all);
+  const save = tot.inc ? Math.round(tot.net / tot.inc * 100) : 0;
+  const best = live.slice().sort((a, b) => b.s.net - a.s.net)[0], worst = live.slice().sort((a, b) => a.s.net - b.s.net)[0];
+  const maxExp = live.slice().sort((a, b) => b.s.exp - a.s.exp)[0];
+  const byCat = Calc.byCat(all), byInc = Calc.byCat(all, 'income');
+  const debtPaid = months.reduce((a, m) => a + m.debt, 0);
+  const avgExp = live.length ? tot.exp / live.length : 0;
+  const pos = live.filter(m => m.s.net >= 0).length;
+  return { y, months, live, tot, save, best, worst, maxExp, byCat, byInc, debtPaid, avgExp, pos, items: Calc.topItems(all, 5) };
+}
+function vYear() {
+  const years = [...new Set(D().tx.map(t => Cycle.key(t.date).slice(0, 4)).concat(Cycle.key(today()).slice(0, 4)))].sort().reverse();
+  App.year = App.year && years.includes(App.year) ? App.year : years[0];
+  const Y = yearData(App.year), cur = esc(S().currency);
+  const yOpts = years.map(y => ({ v: y, label: 'سنة ' + N(y, true), icon: 'calendar-event', color: '#4F46E5', sub: N(D().tx.filter(t => Cycle.key(t.date).startsWith(y)).length) + ' حركة' }));
+  const mRow = m => `<tr class="${m.future ? 'fut' : ''} ${m.current ? 'cur' : ''}"><td><b>${MONTHS[+m.k.slice(5) - 1]}</b>${Cycle.custom() ? `<small>${shortDate(m.rg.from).replace(/ \S+$/, '')} – ${shortDate(m.rg.to).replace(/ \S+$/, '')}</small>` : ''}</td>
+    <td class="green num">${m.list.length ? N(r3(m.s.inc)) : '—'}</td><td class="red num">${m.list.length ? N(r3(m.s.exp)) : '—'}</td>
+    <td class="num ${m.s.net >= 0 ? 'green' : 'red'}">${m.list.length ? (m.s.net < 0 ? '−' : '') + N(r3(Math.abs(m.s.net))) : '—'}</td></tr>`;
+  const ins = [];
+  if (Y.best) ins.push(['good', 'trophy', `أحسن شهر: ${MONTHS[+Y.best.k.slice(5) - 1]}`, `وفّرت فيه ${N(r3(Y.best.s.net))} ${S().currency}.`]);
+  if (Y.worst && Y.worst.s.net < 0) ins.push(['bad', 'alert-triangle', `أصعب شهر: ${MONTHS[+Y.worst.k.slice(5) - 1]}`, `المصروف زاد عن الدخل بـ${N(r3(-Y.worst.s.net))} ${S().currency}.`]);
+  if (Y.maxExp) ins.push(['info', 'flame', `أكتر شهر صرفت فيه: ${MONTHS[+Y.maxExp.k.slice(5) - 1]}`, `صرفت ${N(r3(Y.maxExp.s.exp))} ${S().currency}.`]);
+  if (Y.live.length) ins.push([Y.pos >= Y.live.length / 2 ? 'good' : 'ok', 'calendar-check', `${N(Y.pos)} من ${N(Y.live.length)} شهور قفلت بفايض`, Y.pos === Y.live.length ? 'كل الشهور كانت تمام 👏' : 'حاول تقلل الشهور اللي فيها عجز.']);
+  if (Y.byCat[0]) ins.push(['info', 'chart-pie', `أكبر بند في السنة: ${Y.byCat[0].cat.name}`, `${N(pct(Y.byCat[0].v, Y.tot.exp))}٪ من مصروفك (${N(r3(Y.byCat[0].v))} ${S().currency}).`]);
+  if (Y.debtPaid) ins.push(['good', 'receipt-2', 'سددت أقساط', `دفعت ${N(r3(Y.debtPaid))} ${S().currency} أقساط ومديونيات خلال السنة.`]);
+  const insBlock = ins.map(([k, ic, t, p]) => `<div class="insight"><span class="ic" style="background:${INS_COL[k][1]};color:${INS_COL[k][0]}">${I(ic)}</span><div><b>${esc(t)}</b><p>${esc(p)}</p></div></div>`).join('');
+  const lbl = Y.months.map(m => MONTHS[+m.k.slice(5) - 1].slice(0, 3));
+  return `${topbar('التقرير السنوي', { backBtn: true, right: `<button class="icon-btn" style="background:var(--grad);color:#fff" onclick="yearPDF()">${I('file-type-pdf')}</button>` })}
+  <div class="filters">${dd('yearSel', yOpts, App.year, v => { App.year = v; refresh(); }, { cls: 'full', label: 'السنة' })}</div>
+  <div class="sec" style="padding-top:4px"><div class="grid2">
+    <div class="stat"><div class="t">${I('arrow-down-left')} دخل السنة</div><div class="v green num" data-count="${Y.tot.inc}">0</div></div>
+    <div class="stat"><div class="t">${I('arrow-up-right')} مصروف السنة</div><div class="v red num" data-count="${Y.tot.exp}">0</div></div>
+    <div class="stat"><div class="t">${I('scale')} الصافي</div><div class="v num ${Y.tot.net >= 0 ? 'green' : 'red'}" data-count="${Y.tot.net}">0</div></div>
+    <div class="stat"><div class="t">${I('wallet-in')} نسبة الادخار</div><div class="v num">${N(Y.save)}٪</div><div class="d faint">متوسط صرف الشهر ${N(r3(Y.avgExp))}</div></div></div></div>
+  <div class="sec"><div class="sec-h"><h3>الدخل والمصروف شهر بشهر</h3></div>
+    <div class="card" style="padding:12px 10px 6px">${Y.live.length ? Chart.duo(Y.months.map(m => m.s.inc), Y.months.map(m => m.s.exp), lbl) : emptyBox('chart-bar', 'مفيش حركات في السنة دي')}</div></div>
+  <div class="sec"><div class="sec-h"><h3>الشهور</h3>${Cycle.custom() ? `<span class="badge b-indigo">${Cycle.mode() === 'salary' ? 'الشهر بيبدأ مع المرتب' : 'الشهر بيبدأ يوم ' + N(Cycle.day())}</span>` : ''}</div>
+    <div class="card" style="padding:4px 6px"><table class="ytable"><tr><th>الشهر</th><th>الدخل</th><th>المصروف</th><th>الصافي</th></tr>${Y.months.map(mRow).join('')}
+    <tr class="tot"><td><b>الإجمالي</b></td><td class="green num">${N(r3(Y.tot.inc))}</td><td class="red num">${N(r3(Y.tot.exp))}</td><td class="num ${Y.tot.net >= 0 ? 'green' : 'red'}">${(Y.tot.net < 0 ? '−' : '') + N(r3(Math.abs(Y.tot.net)))}</td></tr></table></div></div>
+  ${ins.length ? `<div class="sec"><div class="sec-h"><h3>إيه اللي حصل في السنة؟</h3></div><div class="card">${insBlock}</div></div>` : ''}
+  ${Y.byCat.length ? `<div class="sec"><div class="sec-h"><h3>اتصرف على إيه؟</h3></div><div class="card">${Y.byCat.slice(0, 8).map(x => `<div class="yc"><span class="ic" style="background:${x.cat.color}1f;color:${x.cat.color}">${I(x.cat.icon || 'tag')}</span><span class="mid"><b>${esc(x.cat.name)}</b><i style="width:${pct(x.v, Y.byCat[0].v)}%;background:${x.cat.color}"></i></span><span class="num">${N(r3(x.v))}<small>${N(pct(x.v, Y.tot.exp))}٪</small></span></div>`).join('')}</div></div>` : ''}
+  ${(() => { const b = Store.data.categories.filter(c => c.type === 'expense' && c.budget > 0); if (!b.length || !Y.live.length) return ''; return `<div class="sec"><div class="sec-h"><h3>الميزانيات: اتصرف ولا لأ؟</h3></div><div class="card">${b.map(c => { const plan = c.budget * Y.live.length, spent = Y.live.reduce((a, m) => a + m.list.filter(x => x.type === 'expense' && x.catId === c.id).reduce((q, x) => q + x.amount, 0), 0), left = plan - spent; return `<div class="yc"><span class="ic" style="background:${c.color}1f;color:${c.color}">${I(c.icon || 'tag')}</span><span class="mid"><b>${esc(c.name)}</b><small>اتصرف ${N(r3(spent))} من ${N(r3(plan))}</small></span><span class="num ${left >= 0 ? 'green' : 'red'}">${left >= 0 ? 'فاضل ' + N(r3(left)) : 'زيادة ' + N(r3(-left))}</span></div>`; }).join('')}</div></div>`; })()}
+  ${Y.byInc.length ? `<div class="sec"><div class="sec-h"><h3>الدخل جه منين؟</h3></div><div class="card">${Y.byInc.map(x => `<div class="yc"><span class="ic" style="background:${x.cat.color}1f;color:${x.cat.color}">${I(x.cat.icon || 'tag')}</span><span class="mid"><b>${esc(x.cat.name)}</b></span><span class="num green">${N(r3(x.v))}</span></div>`).join('')}</div></div>` : ''}
+  <div style="height:20px"></div>`;
+}
+function yearPDF() {
+  const keys = [`${App.year}-01`, `${App.year}-12`];
+  App.range.p = 'custom'; App.range.from = Cycle.rangeOf(keys[0]).from;
+  const end = Cycle.rangeOf(keys[1]).to; App.range.to = end > today() ? today() : end;
+  exportPDF('custom');
+}
+
 /* ---- onboarding ---- */
 function onboarding() {
   const O = $('#onb');
@@ -1227,6 +1341,7 @@ function onboarding() {
       <div style="width:100%;max-width:340px;text-align:start"><div class="field"><label>اسمك</label><input id="on1" placeholder="مثلاً: شادي"></div>
       <div class="field"><label>مرتبك الشهري (اختياري)</label><input id="on2" inputmode="decimal" placeholder="0"></div>
       <div class="field"><label>الفلوس اللي معاك دلوقتي (اختياري)</label><input id="on3" inputmode="decimal" placeholder="0"></div>
+      <div class="field"><label>شهرك بيبدأ يوم كام؟ (يوم القبض مثلاً)</label><input id="on4" inputmode="numeric" placeholder="1" maxlength="2"></div>
       <button class="btn ghost" style="margin-top:4px" onclick="backupImport()">${I('cloud-download')} عندي نسخة احتياطية — رجّعها</button></div></div></div>
     <div class="onb-foot"><div class="dots" id="od" style="margin:0 0 16px">${'<i></i>'.repeat(4)}</div><button class="btn" id="onx">التالي ${I('chevron-left')}</button></div>`;
   O.classList.add('show');
@@ -1238,6 +1353,7 @@ function onboarding() {
     const k = idx();
     if (k < 3) return s.scrollTo({ left: DIRX * (k + 1) * s.clientWidth, behavior: 'smooth' });
     S().name = $('#on1', O).value.trim(); S().salary = parseNum($('#on2', O).value); S().opening = parseNum($('#on3', O).value); S().onboarded = true;
+    { const cd = Math.round(parseNum($('#on4', O).value)); if (cd >= 1 && cd <= 28) { S().cycleDay = cd; if (S().salary > 0) S().salaryDay = cd; } S().cycleMode = 'salary'; S().carry = 'none'; S().cycleAsked = true; }
     Store.save(); setTimeout(askNotif, 900); O.style.transition = 'opacity .4s'; O.style.opacity = 0; setTimeout(() => { O.classList.remove('show'); O.style.opacity = ''; updateBar(); }, 400); go('home', {}, { root: true });
   };
 }
@@ -1254,7 +1370,7 @@ function boot() {
     setTimeout(() => { sp.classList.add('hide'); app.classList.remove('enter'); updateBar(); }, 950);
   }, 2650);
   setTimeout(() => {
-    if (!S().onboarded) onboarding(); else if (S().pin) lockScreen();
+    if (!S().onboarded) onboarding(); else if (S().pin) lockScreen(); else setTimeout(cycleIntro, 1200);
     updateBar();
     syncReminders();
     Pro.start(); Pro.refresh();

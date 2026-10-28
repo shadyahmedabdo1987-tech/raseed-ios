@@ -40,6 +40,56 @@ const dayLabel = s => {
 const shortDate = s => { const d = parseD(s); return `${N(d.getDate(), true)} ${MONTHS[d.getMonth()]} ${N(d.getFullYear(), true)}`; };
 const daysInMonth = mk => { const [y, m] = mk.split('-').map(Number); return new Date(y, m, 0).getDate(); };
 
+/* ---------- month cycle ----------
+   mode "day":    the month starts on a fixed day (1 = calendar months, 28 = from the 28th…)
+   mode "salary": a new month starts on the date the salary is recorded (25, 26, 27… whatever it is that month);
+                  months without a recorded salary fall back to the same day as the last one. */
+const Cycle = {
+  _c: null, _sig: '',
+  mode() { return (Store.data && Store.data.settings.cycleMode) || 'day'; },
+  day() { const d = +((Store.data && Store.data.settings.cycleDay) || 1); return Math.min(28, Math.max(1, d || 1)); },
+  carry() { return (Store.data && Store.data.settings.carry) || 'all'; },   // all | surplus | none
+  isSalary: t => t.type === 'income' && t.catId === 'salary' && !t.noCycle,
+  starts() {
+    const tx = Store.data.tx, st = Store.data.settings;
+    const sig = [tx.length, tx.reduce((m, t) => m + (Cycle.isSalary(t) ? t.date : ''), ''), this.mode(), this.day(), today()].join('|');
+    if (this._c && this._sig === sig) return this._c;
+    const first = tx.reduce((m, x) => x.date < m ? x.date : m, st.createdAt || today());
+    const lo = addMonths(first.slice(0, 7) + '-01', -14), hi = addMonths(today().slice(0, 7) + '-01', 14);
+    const out = [];
+    const fill = (from, to, day) => { // monthly anchors on "day" strictly after "from" and before "to"
+      let k = addMonths(from.slice(0, 7) + '-01', 1);
+      while (true) { const mk = monthKey(k), d = `${mk}-${pad(Math.min(day, daysInMonth(mk)))}`; if (d >= to) break; if (d > from) out.push(d); k = addMonths(k, 1); }
+    };
+    const sal = this.mode() === 'salary' ? [...new Set(tx.filter(Cycle.isSalary).map(t => t.date))].sort() : [];
+    if (!sal.length) {
+      const day = this.day(); let k = lo;
+      while (k <= hi) { const mk = monthKey(k); out.push(`${mk}-${pad(day)}`); k = addMonths(k, 1); }
+    } else {
+      const d0 = +sal[0].slice(8, 10); let k = lo; while (true) { const mk = monthKey(k), d = `${mk}-${pad(Math.min(d0, daysInMonth(mk)))}`; if (d >= sal[0]) break; out.push(d); k = addMonths(k, 1); }
+      sal.forEach((d, i) => {
+        out.push(d);
+        const nx = sal[i + 1] || hi;
+        if (diffDays(d, nx) > 40) fill(d, sal[i + 1] ? addDays(nx, -20) : nx, +d.slice(8, 10));
+      });
+    }
+    this._c = [...new Set(out)].sort(); this._sig = sig; return this._c;
+  },
+  start(date) { const a = this.starts(); let r = a[0]; for (const s of a) { if (s <= date) r = s; else break; } return r; },
+  next(start) { const a = this.starts(); return a.find(s => s > start) || addMonths(start, 1); },
+  range(date) { const f = this.start(date); return { from: f, to: addDays(this.next(f), -1) }; },
+  keyOfStart(f) { return +f.slice(8, 10) > 15 ? monthKey(addMonths(f.slice(0, 7) + '-01', 1)) : monthKey(f); },
+  /* a month is named after the calendar month it mostly covers */
+  key(date) { return this.keyOfStart(this.start(date)); },
+  rangeOf(key) {
+    const f = this.starts().find(s => this.keyOfStart(s) === key);
+    if (!f) return { from: key + '-01', to: `${key}-${pad(daysInMonth(key))}` };
+    return { from: f, to: addDays(this.next(f), -1) };
+  },
+  shift(key, n) { return monthKey(addMonths(key + '-01', n)); },
+  custom() { return this.mode() === 'salary' || this.day() > 1; }
+};
+
 /* ---------- numbers ---------- */
 const AR = '٠١٢٣٤٥٦٧٨٩';
 function toAr(str) { return String(str).replace(/[0-9]/g, d => AR[d]).replace(/,/g, '٬'); }
@@ -96,7 +146,7 @@ const Store = {
   blank() {
     return {
       v: 1,
-      settings: { name: '', currency: 'ج.م', digits: 'ar', theme: 'light', pin: '', notif: { inst: true, before: 1, hour: 10, daily: false, dailyHour: 21 }, salary: 0, salaryDay: 1, opening: 0, onboarded: false, createdAt: today() },
+      settings: { cycleMode: 'day', cycleDay: 1, carry: 'all', name: '', currency: 'ج.م', digits: 'ar', theme: 'light', pin: '', notif: { inst: true, before: 1, hour: 10, daily: false, dailyHour: 21 }, salary: 0, salaryDay: 1, opening: 0, onboarded: false, createdAt: today() },
       categories: JSON.parse(JSON.stringify(DEFAULT_CATS)),
       tx: [],
       debts: [],
@@ -159,15 +209,30 @@ const Card = {
 
 /* ---------- calculations ---------- */
 const Calc = {
-  balance() {
-    return Store.data.settings.opening + Store.data.tx.reduce((s, t) => Card.onCredit(t) ? s : s + (t.type === 'income' ? t.amount : -t.amount), 0);
+  cash(list) { return list.reduce((s, t) => Card.onCredit(t) ? s : s + (t.type === 'income' ? t.amount : -t.amount), 0); },
+  /** money on hand. carry = all: everything since the start (opening + all). none: only this month (each month stands alone).
+      surplus: savings roll into next month, a deficit doesn't. */
+  balance(date = today()) {
+    const st = Store.data.settings, mode = Cycle.carry();
+    if (mode === 'all') return st.opening + Calc.cash(Store.data.tx);
+    const r = Cycle.range(date), cur = Calc.cash(Calc.inRange(r.from, r.to));
+    const first = Store.data.tx.reduce((m, x) => x.date < m ? x.date : m, st.createdAt || today());
+    if (mode === 'none') return cur + (Cycle.start(first) === r.from ? st.opening : 0);
+    let carry = st.opening;
+    Cycle.starts().filter(x => x >= Cycle.start(first) && x < r.from).forEach(f => { carry = Math.max(0, carry + Calc.cash(Calc.inRange(f, addDays(Cycle.next(f), -1)))); });
+    return carry + cur;
+  },
+  /** what came over from earlier months into the current one (for the label under the balance) */
+  carried(date = today()) {
+    const mode = Cycle.carry(); if (mode === 'all') return null;
+    const r = Cycle.range(date); return Calc.balance(date) - Calc.cash(Calc.inRange(r.from, r.to));
   },
   inRange(from, to) { return Store.data.tx.filter(t => (!from || t.date >= from) && (!to || t.date <= to)); },
   sums(list) {
     let inc = 0, exp = 0; list.forEach(t => { if (t.catId === 'cardpay') return; if (t.type === 'income') { if (!Card.onCredit(t)) inc += t.amount; } else exp += t.amount; });
     return { inc, exp, net: inc - exp };
   },
-  month(mk) { return Store.data.tx.filter(t => monthKey(t.date) === mk); },
+  month(mk) { const r = Cycle.rangeOf(mk); return Calc.inRange(r.from, r.to); },
   byCat(list, type = 'expense') {
     const m = {}; list.filter(t => t.type === type && t.catId !== 'cardpay' && !(type === 'income' && Card.onCredit(t))).forEach(t => m[t.catId] = (m[t.catId] || 0) + t.amount);
     return Object.entries(m).map(([id, v]) => ({ cat: cat(id), v })).sort((a, b) => b.v - a.v);
@@ -186,9 +251,9 @@ const Calc = {
     const days = Math.floor(bal / avg);
     return { days, avg, date: addDays(today(), days) };
   },
-  budgets(mk = monthKey(today())) {
-    const list = Calc.month(mk), t = today();
-    const dim = daysInMonth(mk), cur = monthKey(t) === mk ? parseD(t).getDate() : dim;
+  budgets(mk = Cycle.key(today())) {
+    const list = Calc.month(mk), t = today(), rg = Cycle.rangeOf(mk);
+    const dim = diffDays(rg.from, rg.to) + 1, cur = Cycle.key(t) === mk ? diffDays(rg.from, t) + 1 : dim;
     return Store.data.categories.filter(c => c.type === 'expense' && c.budget > 0).map(c => {
       const spent = list.filter(x => x.type === 'expense' && x.catId === c.id).reduce((s, x) => s + x.amount, 0);
       const rate = spent / Math.max(1, cur);
